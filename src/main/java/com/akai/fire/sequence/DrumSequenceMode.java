@@ -328,11 +328,10 @@ public class DrumSequenceMode extends Layer {
         if (pressed) {
             return;
         }
-        if (isPadBeingHeld()) {
+        if (!getHeldNotes().isEmpty()) {
             movePatternFractional(bigCursorClip, dir);
-
         } else {
-            movePatternFractional(bigCursorClip, dir);
+            movePatternWhole(dir);
         }
     }
 
