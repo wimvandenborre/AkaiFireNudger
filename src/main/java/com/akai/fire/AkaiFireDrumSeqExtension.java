@@ -54,6 +54,9 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
     private ControllerHost host;
     private TouchEncoder mainEncoder;
 
+    private Preferences preferences;
+    private SettableEnumValue secondRowFuncPref;
+
     protected AkaiFireDrumSeqExtension(final AkaiFireDrumSeqDefinition definition, final ControllerHost host) {
         super(definition, host);
     }
@@ -79,7 +82,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
 
         setUpHardware();
         setUpTransportControl();
-        //setUpPreferences();
+        setUpPreferences();
 
         drumSequenceMode = new DrumSequenceMode(this);
         midiOut.sendSysex(DEV_INQ);
@@ -111,12 +114,16 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         midiOut.sendSysex(singleRgb);
     }
 
-//    private void setUpPreferences() {
-//        final Preferences preferences = getHost().getPreferences(); // THIS
+    private void setUpPreferences() {
+        preferences = getHost().getPreferences(); // THIS
 //        final SettableEnumValue padStyle = preferences.getEnumSetting("Pad Coloring", //
 //                "Visuals", new String[]{"TR-Style", "Bitwig-Colors"}, "TR-Style");
 //        padStyle.markInterested();
-//    }
+
+        secondRowFuncPref = preferences.getEnumSetting("Second Row", //
+                "Functionalities", new String[]{"Mute-Row", "ClipLaunch-Row"}, "Mute-Row");
+        secondRowFuncPref.markInterested();
+    }
 
     private void setUpTransportControl() {
         transport.isPlaying().markInterested();
@@ -313,4 +320,5 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         return stateLights;
     }
 
+    public SettableEnumValue getSecondRowFuncPref() { return secondRowFuncPref; }
 }

@@ -55,7 +55,7 @@
                             <sourceFile>${project.build.directory}/${project.build.finalName}.jar
                             </sourceFile>
                             <destinationFile>
-								/Users/borrie/Documents/Bitwig Studio/Extensions/rhbitwig.bwextension
+								/Users/borrie/Documents/Bitwig Studio/Extensions/FireNudger.bwextension
                             </destinationFile>
                         </configuration>
                     </execution>

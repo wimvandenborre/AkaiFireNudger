@@ -54,6 +54,7 @@ public class DrumSequenceMode extends Layer {
     private final SeqClipHandler clipHandler;
     private final RecurrenceEditor recurrenceEditor;
     private final PadHandler padHandler;
+    private final PadRowMuteHandler padRowMuteHandler;
 
     private final BooleanValueObject muteMode = new BooleanValueObject();
     private final BooleanValueObject soloMode = new BooleanValueObject();
@@ -83,6 +84,7 @@ public class DrumSequenceMode extends Layer {
         super(driver.getLayers(), "DRUM_SEQUENCE_LAYER");
         host = driver.getHost();
         oled = driver.getOled();
+        SettableEnumValue secondRowFuncPref = driver.getSecondRowFuncPref();
         mainLayer = new Layer(getLayers(), getName() + "_MAIN");
         shiftLayer = new Layer(getLayers(), getName() + "_SHIFT");
         muteLayer = new Layer(getLayers(), getName() + "_MUTE");
@@ -100,12 +102,7 @@ public class DrumSequenceMode extends Layer {
         bigCursorClip.setStepSize(1.0 / 64.0);
         bigCursorClip.addStepDataObserver(this::observingNotes);
         bigCursorClip.scrollToKey(0);
-      //  cursorClipLauncher.scrollToKey(0);
-       //cursorClip.addStepDataObserver(this::observingNotes);
-        //ursorClipLauncher = host.createLauncherCursorClip(32, 1);
-      //  cursorClipLauncher.setStepSize(1.0 / 16.0);
 
-      // cursorClip.addStepDataObserver(this::observingNotes);
 
 
         cursorClip.addNoteStepObserver(this::handleNoteStep);
@@ -120,7 +117,14 @@ public class DrumSequenceMode extends Layer {
         positionHandler = new StepViewPosition(cursorClip, 32, "AKAI");
 
         padHandler = new PadHandler(driver, this, mainLayer, muteLayer, soloLayer);
-        clipHandler = new SeqClipHandler(driver, this, mainLayer);
+
+        if (secondRowFuncPref.get().equals("Mute-Row")) {
+            padRowMuteHandler = new PadRowMuteHandler(driver, this, mainLayer);
+            clipHandler = null;
+        } else {
+            clipHandler = new SeqClipHandler(driver, this, mainLayer);
+            padRowMuteHandler = null;
+        }
         recurrenceEditor = new RecurrenceEditor(driver, this);
 
         initSequenceSection(driver);
@@ -500,6 +504,7 @@ public class DrumSequenceMode extends Layer {
 
     public void notifyBlink(final int blinkTicks) {
         blinkState = blinkTicks;
+        if (clipHandler != null)
         clipHandler.notifyBlink(blinkTicks);
     }
 
