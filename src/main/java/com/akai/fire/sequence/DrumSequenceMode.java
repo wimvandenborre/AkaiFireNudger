@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 public class DrumSequenceMode extends Layer {
 
     private final ControllerHost host;
+    private Application app;
 
     private final IntSetValue heldSteps = new IntSetValue();
     private final Set<Integer> addedSteps = new HashSet<>();
@@ -63,6 +64,7 @@ public class DrumSequenceMode extends Layer {
     private final BooleanValueObject deleteHeld = new BooleanValueObject();
     private final BooleanValueObject fixedLengthHeld = new BooleanValueObject();
     private final BooleanValueObject shiftActive = new BooleanValueObject();
+    private final BooleanValueObject altActive = new BooleanValueObject();
     private final BooleanValueObject clipLaunchModeQuant = new BooleanValueObject();
     private final BooleanValueObject lengthDisplay = new BooleanValueObject();
 
@@ -84,6 +86,8 @@ public class DrumSequenceMode extends Layer {
         super(driver.getLayers(), "DRUM_SEQUENCE_LAYER");
         host = driver.getHost();
         oled = driver.getOled();
+        app = host.createApplication();
+
         SettableEnumValue secondRowFuncPref = driver.getSecondRowFuncPref();
         mainLayer = new Layer(getLayers(), getName() + "_MAIN");
         shiftLayer = new Layer(getLayers(), getName() + "_SHIFT");
@@ -200,6 +204,9 @@ public class DrumSequenceMode extends Layer {
         final BiColorButton shiftButton = driver.getButton(NoteAssign.SHIFT);
         shiftButton.bind(mainLayer, shiftActive, BiColorLightState.GREEN_HALF, BiColorLightState.OFF);
 
+        final BiColorButton altButton = driver.getButton(NoteAssign.ALT);
+        altButton.bind(mainLayer, altActive, BiColorLightState.GREEN_HALF, BiColorLightState.OFF);
+
         final BiColorButton clipLaunchModeButton = driver.getButton(NoteAssign.NOTE);
         clipLaunchModeButton.bindToggle(mainLayer, clipLaunchModeQuant, BiColorLightState.AMBER_FULL,
                 BiColorLightState.AMBER_HALF, oled,
@@ -218,9 +225,27 @@ public class DrumSequenceMode extends Layer {
         resolutionButton.bindPressed(mainLayer, resolutionHandler::handlePressed, resolutionHandler::getLightState);
 
         final BiColorButton shiftLeftButton = driver.getButton(NoteAssign.BANK_L);
-        shiftLeftButton.bindPressed(mainLayer, p -> movePattern(p, -1), BiColorLightState.HALF, BiColorLightState.OFF);
+        shiftLeftButton.bindPressed(mainLayer, p -> {
+            if (shiftActive.get()) {
+                // If shift is held, perform the undo action.
+                getApplication().undo();
+            } else {
+                // Otherwise, perform the move pattern action.
+                movePattern(p, -1);
+            }
+        }, BiColorLightState.HALF, BiColorLightState.OFF);
+
         final BiColorButton shiftRightButton = driver.getButton(NoteAssign.BANK_R);
-        shiftRightButton.bindPressed(mainLayer, p -> movePattern(p, 1), BiColorLightState.HALF, BiColorLightState.OFF);
+        shiftRightButton.bindPressed(mainLayer, p -> {
+            if (shiftActive.get()) {
+                // If shift is held, perform the redo action.
+                getApplication().redo();
+            } else {
+                // Otherwise, perform the move pattern action.
+                movePattern(p, 1);
+            }
+        }, BiColorLightState.HALF, BiColorLightState.OFF);
+
     }
 
     //TODO DOGGY
@@ -784,4 +809,7 @@ public class DrumSequenceMode extends Layer {
     public PadHandler getPadHandler() {
         return padHandler;
     }
+
+    public Application getApplication() {return app; }
+
 }

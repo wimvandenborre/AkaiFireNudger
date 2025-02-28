@@ -142,6 +142,10 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         final BiColorButton shiftButton = addButton(NoteAssign.SHIFT);
         shiftButton.bind(mainLayer, shiftActive, BiColorLightState.RED_HALF, BiColorLightState.OFF);
 
+
+
+
+
         final BiColorButton m1Button = addButton(NoteAssign.MUTE_1);
         m1Button.bindPressed(mainLayer, this::dummyAction, BiColorLightState.RED_FULL);
         addButton(NoteAssign.MUTE_2);
