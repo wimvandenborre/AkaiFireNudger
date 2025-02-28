@@ -211,8 +211,8 @@ public class DrumSequenceMode extends Layer {
         final BiColorButton retrigButton = driver.getButton(NoteAssign.DRUM);
         retrigButton.bind(mainLayer, this::retrigger, BiColorLightState.AMBER_FULL, BiColorLightState.AMBER_HALF);
 
-        final BiColorButton pinButton = driver.getButton(NoteAssign.ALT);
-        pinButton.bindPressed(mainLayer, this::handleClipPinning, this::getPinnedState);
+       // final BiColorButton pinButton = driver.getButton(NoteAssign.ALT);
+        //pinButton.bindPressed(mainLayer, this::handleClipPinning, this::getPinnedState);
 
         final BiColorButton resolutionButton = driver.getButton(NoteAssign.PERFORM);
         resolutionButton.bindPressed(mainLayer, resolutionHandler::handlePressed, resolutionHandler::getLightState);
