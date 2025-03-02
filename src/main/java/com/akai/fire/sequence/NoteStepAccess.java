@@ -43,7 +43,10 @@ public enum NoteStepAccess implements EncoderAccess {
 			NoteValueUnit.PERCENT, -1, 1, 0.01, 0.25, 0.0),
 	REPEAT_VEL_END("Rpt.Vel.End", ns -> ns.repeatVelocityEnd(), //
 			(final NoteStep ns, final double v) -> ns.setRepeatVelocityEnd(v), //
-			NoteValueUnit.PERCENT, -1, 1, 0.01, 0.25, 0.0);
+			NoteValueUnit.PERCENT, -1, 1, 0.01, 0.25, 0.0),
+	Pitch("Pitch", ns -> ns.transpose(), //
+			(final NoteStep ns, final double v) -> ns.setTranspose(v), //
+			NoteValueUnit.PERCENT, -96, 96, 1, 1, 0.0);
 
 //	TRANSPOSE("Transpose", ns -> ns.transpose(), //
 //			(final NoteStep ns, final double v) -> ns.setTranspose(v), //
