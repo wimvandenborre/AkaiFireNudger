@@ -4,10 +4,10 @@ import com.akai.fire.lights.BiColorLightState;
 
 public enum EncoderMode {
     CHANNEL(BiColorLightState.MODE_CHANNEL, "1: Velocity\n2: Chance\n3: Repeats\n4: Pitch", //
-            new EncoderAccess[]{NoteStepAccess.VELOCITY, NoteStepAccess.CHANCE, NoteStepAccess.REPEATS, NoteStepAccess.Pitch}),
-    MIXER(BiColorLightState.MODE_MIXER, "1: Velocity Spread\n2: Pressure\n3: Length\n4: Timbre",
+        new EncoderAccess[]{NoteStepAccess.VELOCITY, NoteStepAccess.CHANCE, NoteStepAccess.REPEATS, NoteStepAccess.PITCH}),
+    MIXER(BiColorLightState.MODE_MIXER, "1: Velocity Spread\n2: Pressure\n3: Length\n4: Occurrence",
             new EncoderAccess[]{NoteStepAccess.VELOCITY_SPREAD, NoteStepAccess.PRESSURE, //
-                    NoteStepAccess.DURATION, NoteStepAccess.TIMBRE}), //
+                    NoteStepAccess.DURATION, NoteStepAccess.OCCURENCE}), //
     MIXER_SHIFT(BiColorLightState.MODE_MIXER, "1: Repeat Curve\n2: Repeat Vel Curve\n3: Repeat Vel End\n4: Occurrence",
             new EncoderAccess[]{NoteStepAccess.REPEATCURVE, NoteStepAccess.REPEAT_VEL_CRV, //
                     NoteStepAccess.REPEAT_VEL_END, NoteStepAccess.OCCURENCE}),

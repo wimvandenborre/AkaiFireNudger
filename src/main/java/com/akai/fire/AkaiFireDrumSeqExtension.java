@@ -132,6 +132,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         transport.isClipLauncherOverdubEnabled().markInterested();
         //transport.isMetronomeEnabled().markInterested();
         transport.isClipLauncherAutomationWriteEnabled().markInterested();
+        transport.isFillModeActive().markInterested();
         final BiColorButton playButton = addButton(NoteAssign.PLAY);
         playButton.bindPressed(mainLayer, this::togglePlay, this::getPlayState);
         final BiColorButton recButton = addButton(NoteAssign.REC);
@@ -154,7 +155,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         addButton(NoteAssign.STEP_SEQ);
         addButton(NoteAssign.KNOB_MODE, NoteAssign.KNOB_MODE_LIGHT.getNoteValue());
         addButton(NoteAssign.NOTE);
-        addButton(NoteAssign.DRUM);
+        //addButton(NoteAssign.DRUM);
         addButton(NoteAssign.PERFORM);
         addButton(NoteAssign.ALT);
         addButton(NoteAssign.PATTERN_UP);
@@ -162,8 +163,10 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         addButton(NoteAssign.BANK_L);
         addButton(NoteAssign.BANK_R);
         final BiColorButton metronomeButton = addButton(NoteAssign.PATTERN);
+        final BiColorButton drumButton = addButton(NoteAssign.DRUM);
        // metronomeButton.bindPressed(mainLayer, this::toggleMetronome, this::getMetronomeState);
         metronomeButton.bindPressed(mainLayer, this::toggleClipLauncherAutomationWriteEnabled, this::getClipLauncherAutomationWriteEnabledState);
+        drumButton.bindPressed(mainLayer, this::toggleDrumFill, this::getDrumFillState);
         addButton(NoteAssign.BROWSER);
         stateLights[0] = createLight(NoteAssign.TRACK_SELECT_1);
         stateLights[1] = createLight(NoteAssign.TRACK_SELECT_2);
@@ -213,6 +216,10 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         return transport.isClipLauncherAutomationWriteEnabled().get() ? BiColorLightState.AMBER_HALF : BiColorLightState.OFF;
     }
 
+    private BiColorLightState getDrumFillState() {
+        return transport.isFillModeActive().get() ? BiColorLightState.AMBER_HALF : BiColorLightState.OFF;
+    }
+
     private void dummyAction(final boolean pressed) {
     }
 
@@ -242,6 +249,13 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
             return;
         }
         transport.isClipLauncherAutomationWriteEnabled().toggle();
+    }
+
+    private void toggleDrumFill(final boolean pressed) {
+        if (!pressed) {
+            return;
+        }
+        transport.isFillModeActive().toggle();
     }
 
     private void togglePlay(final boolean pressed) {

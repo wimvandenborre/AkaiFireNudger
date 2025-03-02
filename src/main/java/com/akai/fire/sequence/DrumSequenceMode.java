@@ -215,8 +215,8 @@ public class DrumSequenceMode extends Layer {
                                 TextJustification.CENTER)//
                         .create());
 
-        final BiColorButton retrigButton = driver.getButton(NoteAssign.DRUM);
-        retrigButton.bind(mainLayer, this::retrigger, BiColorLightState.AMBER_FULL, BiColorLightState.AMBER_HALF);
+//        final BiColorButton retrigButton = driver.getButton(NoteAssign.DRUM);
+//        retrigButton.bind(mainLayer, this::retrigger, BiColorLightState.AMBER_FULL, BiColorLightState.AMBER_HALF);
 
        // final BiColorButton pinButton = driver.getButton(NoteAssign.ALT);
         //pinButton.bindPressed(mainLayer, this::handleClipPinning, this::getPinnedState);
