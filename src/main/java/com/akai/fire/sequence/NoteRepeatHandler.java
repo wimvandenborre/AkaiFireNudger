@@ -3,6 +3,7 @@ package com.akai.fire.sequence;
 import com.akai.fire.AkaiFireDrumSeqExtension;
 import com.akai.fire.lights.BiColorLightState;
 import com.bitwig.extension.controller.api.Arpeggiator;
+import com.bitwig.extension.controller.api.CursorRemoteControlsPage;
 import com.bitwig.extension.controller.api.NoteInput;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
 
@@ -58,13 +59,27 @@ public class NoteRepeatHandler {
 		return noteRepeatActive;
 	}
 
-	void handleMainEncoder(final int inc) {
-		final int newValue = selectedArpIndex + inc;
-		if (newValue >= 0 && newValue < ARP_RATES.length) {
-			selectedArpIndex = newValue;
-			setNoteRateValue(newValue);
+	void handleMainEncoder(final int inc, final boolean altHeld) {
+		if (altHeld) {
+			CursorRemoteControlsPage remotePage = parent.getActiveRemoteControlsPage();
+			if (remotePage != null) {
+				int currentPage = remotePage.selectedPageIndex().get();
+				int newPage = currentPage + inc;
+				// Optionally, clamp newPage to valid range (0 to pageCount - 1)
+				remotePage.selectedPageIndex().set(newPage);
+				parent.getOled().valueInfo("Remote Page", String.valueOf(newPage));
+			}
+		} else {
+			// Regular behavior...
+			final int newValue = selectedArpIndex + inc;
+			if (newValue >= 0 && newValue < ARP_RATES.length) {
+				selectedArpIndex = newValue;
+				setNoteRateValue(newValue);
+			}
 		}
 	}
+
+
 
 	private void setNoteRateValue(final int index) {
 		this.selectedArpIndex = index;

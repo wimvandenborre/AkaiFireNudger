@@ -335,7 +335,7 @@ public class PadHandler {
     }
 
     public void handleMainEncoder(final int inc) {
-        noteRepeatHandler.handleMainEncoder(inc);
+        noteRepeatHandler.handleMainEncoder(inc, parent.isAltHeld());
     }
 
     private BiColorLightState canScrollUp(final BiColorButton button) {
@@ -374,13 +374,14 @@ public class PadHandler {
             return;
         }
         if (parent.isShiftHeld()) {
+
             padBank.scrollBy(-4);
         } else {
             padBank.scrollBy(-16);
         }
     }
 
-    public DisplayTarget getDiplayTarget() {
+    public DisplayTarget getDisplayTarget() {
         return displayTarget;
     }
 
@@ -397,7 +398,7 @@ public class PadHandler {
         if (selectedPad == null) {
             return;
         }
-        selectedPad.modifyValue(typeIndex, inc, parent.isShiftHeld());
+        selectedPad.modifyValue(typeIndex, inc, parent.isShiftHeld(), parent.isAltHeld());
     }
 
     public void bindPadParameters(final Layer layer) {
@@ -418,6 +419,7 @@ public class PadHandler {
         }
 
     }
+
 
     public NoteRepeatHandler getNoteRepeaterHandler() {
         return noteRepeatHandler;

@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class AkaiFireDrumSeqExtension extends ControllerExtension {
+    private static AkaiFireDrumSeqExtension instance;
     private HardwareSurface surface;
     private Transport transport;
     private MidiIn midiIn;
@@ -59,6 +60,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
 
     protected AkaiFireDrumSeqExtension(final AkaiFireDrumSeqDefinition definition, final ControllerHost host) {
         super(definition, host);
+        instance = this;
     }
 
     @Override
@@ -352,4 +354,12 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
     }
 
     public SettableEnumValue getSecondRowFuncPref() { return secondRowFuncPref; }
+
+    public static AkaiFireDrumSeqExtension getInstance() {
+        return instance;
+    }
+
+    public static ControllerHost getGlobalHost() {
+        return instance.getHost();
+    }
 }

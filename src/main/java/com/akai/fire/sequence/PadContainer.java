@@ -5,6 +5,7 @@ import com.akai.fire.display.ParameterDisplayBinding;
 import com.akai.fire.lights.RgbLigthState;
 import com.bitwig.extension.controller.api.CursorRemoteControlsPage;
 import com.bitwig.extension.controller.api.DrumPad;
+import com.bitwig.extension.controller.api.IntegerValue;
 import com.bitwig.extension.controller.api.Send;
 import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
@@ -12,8 +13,13 @@ import com.bitwig.extensions.framework.values.DawColor;
 
 class PadContainer {
 
+
     private static final double SHIFT_INC = 0.001;
     private static final double REGULAR_INC = 0.025;
+    private static final double TUNE_INC = 0.0416667;
+    private static final double PITCH_INC = 0.0138889;
+
+    private int lastKnobValue = 0;
 
     private static final RgbLigthState TR_RED = new RgbLigthState(70, 0, 0, true);
     private static final RgbLigthState TR_ORANGE = new RgbLigthState(90, 15, 0, true);
@@ -49,6 +55,10 @@ class PadContainer {
     private final ParameterDisplayBinding macro3Binding;
     private final ParameterDisplayBinding macro4Binding;
 
+//    private static final String[] NOTE_NAMES = {
+//            "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G"
+//    };
+
     public PadContainer(final PadHandler padHandler, final int index, final DrumPad pad,
                         final BooleanValueObject playing) {
         super();
@@ -60,7 +70,8 @@ class PadContainer {
 
         for (int i = 0; i < 8; i++) {
             final Send sendItem = pad.sendBank().getItemAt(i);
-            sendBindings[i] = new ParameterDisplayBinding(i + 2, index, sendItem, padHandler.getDiplayTarget(), false);
+            // sendBindings[i] = new ParameterDisplayBinding(i + 2, index, sendItem, padHandler.getDiplayTarget(), false, null);
+            sendBindings[i] = new ParameterDisplayBinding(i + 2, index, sendItem, padHandler.getDisplayTarget(), false);
         }
 
         pad.mute().markInterested();
@@ -78,15 +89,27 @@ class PadContainer {
                 this.padHandler.currentPadColor = bitwigPadColor;
             }
         });
-        volumeBinding = new ParameterDisplayBinding(0, index, pad.volume(), padHandler.getDiplayTarget(), false);
-        panBinding = new ParameterDisplayBinding(1, index, pad.pan(), padHandler.getDiplayTarget(), true);
+        volumeBinding = new ParameterDisplayBinding(0, index, pad.volume(), padHandler.getDisplayTarget(), false);
+        panBinding = new ParameterDisplayBinding(1, index, pad.pan(), padHandler.getDisplayTarget(), true);
 
-        remoteControls = pad.createDeviceBank(1).getDevice(0).createCursorRemoteControlsPage(4);
+        remoteControls = pad.createDeviceBank(1).getDevice(0).createCursorRemoteControlsPage(8);
+        remoteControls.createPresetPageAction();
+        remoteControls.selectedPageIndex().markInterested();
+        int howmanypages = remoteControls.selectedPageIndex().get();
 
-        macro1Binding = new ParameterDisplayBinding(4, index, remoteControls.getParameter(0), padHandler.getDiplayTarget(), false);
-        macro2Binding = new ParameterDisplayBinding(5, index, remoteControls.getParameter(1), padHandler.getDiplayTarget(), false);
-        macro3Binding = new ParameterDisplayBinding(6, index, remoteControls.getParameter(2), padHandler.getDiplayTarget(), false);
-        macro4Binding = new ParameterDisplayBinding(7, index, remoteControls.getParameter(3), padHandler.getDiplayTarget(), false);
+        padHandler.parent.setActiveRemoteControlsPage(remoteControls);
+
+      //  macro1Binding = new ParameterDisplayBinding(4, index, remoteControls.getParameter(0), padHandler.getDiplayTarget(), false, null);
+
+        macro1Binding = new ParameterDisplayBinding(4, index, remoteControls.getParameter(0), padHandler.getDisplayTarget(), false);
+        macro2Binding = new ParameterDisplayBinding(5, index, remoteControls.getParameter(1), padHandler.getDisplayTarget(), false);
+        macro3Binding = new ParameterDisplayBinding(6, index, remoteControls.getParameter(2), padHandler.getDisplayTarget(), false);
+        macro4Binding = new ParameterDisplayBinding(7, index, remoteControls.getParameter(3), padHandler.getDisplayTarget(), false);
+        remoteControls.getParameter(0).value().markInterested();
+        remoteControls.getParameter(0).name().markInterested();
+
+
+
     }
 
 
@@ -166,8 +189,19 @@ class PadContainer {
         pad.selectInEditor();
     }
 
-    public void modifyValue(final int typeIndex, final int inc, final boolean shiftHeld) {
-        final double amount = inc * (shiftHeld ? SHIFT_INC : REGULAR_INC);
+    public void modifyValue(final int typeIndex, final int inc, final boolean shiftHeld, final boolean altHeld) {
+        double amount = 0;
+
+        if (altHeld) {
+           if (remoteControls.getParameter(0).name().get().contains("Tune"))
+            amount = inc * TUNE_INC; // Force increments of exactly ±1
+            else if (remoteControls.getParameter(0).name().get().contains("Pitch"))
+               amount = inc * PITCH_INC;
+            else amount = inc * REGULAR_INC;
+        }
+        else {
+            amount = inc * (shiftHeld ? SHIFT_INC : REGULAR_INC);
+        }
         switch (typeIndex) {
             case 0:
                 volumeBinding.modify(amount);
@@ -214,6 +248,7 @@ class PadContainer {
                 break;
             case 4:
                 macro1Binding.update();
+
                 break;
             case 5:
                 macro2Binding.update();
@@ -228,4 +263,10 @@ class PadContainer {
                 break;
         }
     }
+//    public String getNoteDisplay(int knobValue) {
+//        int noteIndex = (knobValue + 12) % 12; // Shift so 0 maps to G#
+//
+//        return NOTE_NAMES[noteIndex];
+//    }
+
 }

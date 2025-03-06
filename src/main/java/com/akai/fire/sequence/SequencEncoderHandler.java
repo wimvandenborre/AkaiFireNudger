@@ -113,6 +113,7 @@ public class SequencEncoderHandler extends Layer {
 		for (int i = 0; i < encoders.length; i++) {
 			int index = i;
 			encoders[i].bindEncoder(layer, inc -> handleParam(index + 4, inc));
+
 			encoders[i].bindTouched(layer, touched -> handleTouchParam(index + 4, touched, user2ParamNames[index]));
 			padHandler.bindPadMacros(layer);
 		}

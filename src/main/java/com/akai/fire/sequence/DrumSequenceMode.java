@@ -80,6 +80,8 @@ public class DrumSequenceMode extends Layer {
     private NoteStep copyNote = null;
     private int blinkState;
 
+    private CursorRemoteControlsPage activeRemoteControlsPage;
+
 
     public DrumSequenceMode(final AkaiFireDrumSeqExtension driver) {
 
@@ -704,7 +706,7 @@ public class DrumSequenceMode extends Layer {
 
     private void applyValues(final NoteStep dest, final NoteStep src) {
         // TODO: this is a bug, somewhere the chance is lost
-        dest.setChance(1); // src.chance()
+        dest.setChance(src.chance()); // src.chance()
         dest.setTimbre(src.timbre());
         dest.setPressure(src.pressure());
         dest.setRepeatCount(src.repeatCount());
@@ -753,6 +755,11 @@ public class DrumSequenceMode extends Layer {
     boolean isShiftHeld() {
         return shiftActive.get();
     }
+
+    boolean isAltHeld() {
+        return altActive.get();
+    }
+
 
     boolean isCopyHeld() {
         return copyHeld.get();
@@ -811,5 +818,13 @@ public class DrumSequenceMode extends Layer {
     }
 
     public Application getApplication() {return app; }
+
+    public void setActiveRemoteControlsPage(final CursorRemoteControlsPage remoteControlsPage) {
+     this.activeRemoteControlsPage = remoteControlsPage;
+    }
+
+    public CursorRemoteControlsPage getActiveRemoteControlsPage() {
+        return activeRemoteControlsPage;
+    }
 
 }
