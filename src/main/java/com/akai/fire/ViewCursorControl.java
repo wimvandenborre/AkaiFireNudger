@@ -23,7 +23,7 @@ public class ViewCursorControl {
 		super();
 
 		this.trackBank = host.createTrackBank(8, 8, sends);
-		this.cursorTrack = host.createCursorTrack(8, sends);
+		this.cursorTrack = host.createCursorTrack("View Control", "view Control", 8, sends, true);
 
 		cursorTrack.clipLauncherSlotBank().cursorIndex().addValueObserver(index -> {
 			// RemoteConsole.out.println(" => {}", index);

@@ -11,6 +11,7 @@ import com.akai.fire.display.OledDisplay.TextJustification;
 import com.akai.fire.lights.BiColorLightState;
 import com.akai.fire.lights.RgbLigthState;
 import com.akai.fire.sequence.NoteAction.Type;
+import com.akai.fire.utils.PatternButtons;
 import com.bitwig.extension.api.Color;
 import com.bitwig.extension.controller.api.*;
 import com.bitwig.extensions.framework.Layer;
@@ -109,15 +110,10 @@ public class PadHandler {
     }
 
     private void initButtons(final Layer mainLayer, final AkaiFireDrumSeqExtension driver) {
-        final BiColorButton browerNrButton = driver.getButton(NoteAssign.BROWSER);
-        browerNrButton.bindPressed(mainLayer, noteRepeatHandler::handlePressed, noteRepeatHandler::getLightState);
-        final BiColorButton upNavButon = driver.getButton(NoteAssign.PATTERN_UP);
-        upNavButon.markPressedInteressed();
-        upNavButon.bindPressed(mainLayer, this::scrollForward, () -> canScrollUp(upNavButon));
 
-        final BiColorButton downNavButon = driver.getButton(NoteAssign.PATTERN_DOWN);
-        downNavButon.markPressedInteressed();
-        downNavButon.bindPressed(mainLayer, this::scrollBackward, () -> canScrollDown(downNavButon));
+        final BiColorButton browserNrButton = driver.getButton(NoteAssign.BROWSER);
+        browserNrButton.bindPressed(mainLayer, noteRepeatHandler::handlePressed, noteRepeatHandler::getLightState);
+
     }
 
     private void handlePadSelection(final PadContainer pad, final boolean pressed) {
@@ -358,7 +354,7 @@ public class PadHandler {
         return BiColorLightState.OFF;
     }
 
-    private void scrollForward(final boolean pressed) {
+    void scrollForward(final boolean pressed) {
         if (!pressed) {
             return;
         }
@@ -369,7 +365,7 @@ public class PadHandler {
         }
     }
 
-    private void scrollBackward(final boolean pressed) {
+    void scrollBackward(final boolean pressed) {
         if (!pressed) {
             return;
         }
@@ -386,9 +382,28 @@ public class PadHandler {
     }
 
     public void activateView(final int typeIndex, final String paramName) {
-        displayTarget.setTypeIndex(typeIndex, paramName);
+        // Try to fetch the real parameter name from the active remote controls page.
+        CursorRemoteControlsPage remotePage = parent.getActiveRemoteControlsPage();
+        String realParamName = paramName; // fallback value
+
+        // For macro parameters, our typeIndex starts at 10.
+        int offset = 10;
+        int remoteParamIndex = typeIndex - offset;
+
+        // Make sure the computed index is within the valid range.
+        if (remotePage != null && remoteParamIndex >= 0 && remoteParamIndex < remotePage.getParameterCount()) {
+            Parameter parameter = remotePage.getParameter(remoteParamIndex);
+            if (parameter != null) {
+                // Mark the parameter name as interested so we can read its current value.
+                realParamName = parameter.name().get();
+            }
+        }
+
+        displayTarget.setTypeIndex(typeIndex, realParamName);
         displayTarget.activate();
     }
+
+
 
     public void deactivateView() {
         displayTarget.deactivate();
@@ -413,6 +428,12 @@ public class PadHandler {
         }
     }
 
+    public void bindPadMacrosShift(final Layer layer) {
+        for (final PadContainer pad : pads) {
+            pad.bindMacrosShift(layer);
+        }
+    }
+
     public void updateDisplay(final int index) {
         if (selectedPad != null) {
             selectedPad.updateDisplay(index);
@@ -423,5 +444,17 @@ public class PadHandler {
 
     public NoteRepeatHandler getNoteRepeaterHandler() {
         return noteRepeatHandler;
+    }
+
+    private void handlePatternUpPressed(final boolean pressed) {
+        if (pressed && parent.isAltHeld()) {
+            scrollForward(true);
+        }
+    }
+
+    private void handlePatternDownPressed(final boolean pressed) {
+        if (pressed && parent.isAltHeld()) {
+            scrollBackward(true);
+        }
     }
 }

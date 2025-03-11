@@ -10,6 +10,7 @@ import com.akai.fire.display.OledDisplay;
 import com.akai.fire.display.OledDisplay.TextJustification;
 import com.akai.fire.lights.BiColorLightState;
 import com.akai.fire.lights.RgbLigthState;
+import com.akai.fire.utils.PatternButtons;
 import com.bitwig.extension.controller.api.*;
 import com.bitwig.extension.controller.api.NoteStep.State;
 import com.bitwig.extensions.framework.Layer;
@@ -247,6 +248,9 @@ public class DrumSequenceMode extends Layer {
                 movePattern(p, 1);
             }
         }, BiColorLightState.HALF, BiColorLightState.OFF);
+
+        //This is used for a centralized location for pattern buttons
+        bindPatternButtons(driver);
 
     }
 
@@ -826,5 +830,40 @@ public class DrumSequenceMode extends Layer {
     public CursorRemoteControlsPage getActiveRemoteControlsPage() {
         return activeRemoteControlsPage;
     }
+
+    private void bindPatternButtons(AkaiFireDrumSeqExtension driver) {
+        // Get the shared PatternButtons instance (make sure it’s created during init)
+        PatternButtons patternButtons = driver.getPatternButtons();
+        if (patternButtons == null) {
+            host.println("PatternButtons is null in DrumSequenceMode.bindPatternButtons()");
+            return;
+        }
+        // Bind a unified callback for the UP button:
+        patternButtons.setUpCallback(pressed -> {
+            if (pressed) {
+                if (altActive.get()) {
+                    // When Alt is held, scroll pads
+                    padHandler.scrollForward(true);
+                } else {
+                    // Otherwise, toggle the encoder shift mode
+                    encoderLayer.toggleShiftForCurrentMode();
+                }
+            }
+        }, () -> BiColorLightState.HALF);
+
+        // Bind a unified callback for the DOWN button:
+        patternButtons.setDownCallback(pressed -> {
+            if (pressed) {
+                if (altActive.get()) {
+                    // When Alt is held, scroll pads backward
+                    padHandler.scrollBackward(true);
+                } else {
+                    // Otherwise, toggle the encoder shift mode
+                    encoderLayer.toggleShiftForCurrentMode();
+                }
+            }
+        }, () -> BiColorLightState.HALF);
+    }
+
 
 }

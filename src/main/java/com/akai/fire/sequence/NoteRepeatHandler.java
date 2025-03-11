@@ -59,15 +59,21 @@ public class NoteRepeatHandler {
 		return noteRepeatActive;
 	}
 
+	//BUG Pagename is not updated correctly
+
 	void handleMainEncoder(final int inc, final boolean altHeld) {
 		if (altHeld) {
 			CursorRemoteControlsPage remotePage = parent.getActiveRemoteControlsPage();
 			if (remotePage != null) {
+				int pageCount = remotePage.pageCount().getAsInt();
 				int currentPage = remotePage.selectedPageIndex().get();
+
 				int newPage = currentPage + inc;
-				// Optionally, clamp newPage to valid range (0 to pageCount - 1)
-				remotePage.selectedPageIndex().set(newPage);
-				parent.getOled().valueInfo("Remote Page", String.valueOf(newPage));
+				if (newPage >= 0 && newPage < pageCount) {
+					remotePage.selectedPageIndex().set(newPage);
+					String pageName = remotePage.pageNames().get(newPage);
+					parent.getOled().valueInfo("Remote Page", pageName);
+				}
 			}
 		} else {
 			// Regular behavior...

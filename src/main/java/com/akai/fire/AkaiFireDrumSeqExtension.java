@@ -7,6 +7,8 @@ import com.akai.fire.display.OledDisplay;
 import com.akai.fire.lights.BiColorLightState;
 import com.akai.fire.lights.RgbLigthState;
 import com.akai.fire.sequence.DrumSequenceMode;
+import com.akai.fire.utils.MainCursor;
+import com.akai.fire.utils.PatternButtons;
 import com.bitwig.extension.api.util.midi.ShortMidiMessage;
 import com.bitwig.extension.callback.ShortMidiMessageReceivedCallback;
 import com.bitwig.extension.controller.ControllerExtension;
@@ -58,6 +60,8 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
     private Preferences preferences;
     private SettableEnumValue secondRowFuncPref;
 
+    private PatternButtons patternButtons;
+
     protected AkaiFireDrumSeqExtension(final AkaiFireDrumSeqDefinition definition, final ControllerHost host) {
         super(definition, host);
         instance = this;
@@ -67,6 +71,8 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
     public void init() {
         host = getHost();
         Arrays.fill(lastCcValue, -1);
+
+        MainCursor mainCursor = new MainCursor(host, 0, 0);
 
         layers = new Layers(this);
         midiIn = host.getMidiInPort(0);
@@ -82,10 +88,12 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         mainLayer = new Layer(layers, "Main");
         oled = new OledDisplay(midiOut);
 
+
         setUpHardware();
         setUpTransportControl();
         setUpPreferences();
 
+        patternButtons = new PatternButtons(this, mainLayer);
         drumSequenceMode = new DrumSequenceMode(this);
         midiOut.sendSysex(DEV_INQ);
 
@@ -94,6 +102,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         drumSequenceMode.activate();
         host.scheduleTask(this::handlePing, 100);
         getHost().showPopupNotification("Init Akai Fire: Drum Sequencer");
+
     }
 
     private void handlePing() {
@@ -361,5 +370,9 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
 
     public static ControllerHost getGlobalHost() {
         return instance.getHost();
+    }
+
+    public PatternButtons getPatternButtons() {
+        return patternButtons;
     }
 }

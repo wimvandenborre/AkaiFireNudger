@@ -10,6 +10,8 @@ import com.akai.fire.control.BiColorButton;
 import com.akai.fire.control.TouchEncoder;
 import com.akai.fire.display.OledDisplay;
 import com.akai.fire.lights.BiColorLightState;
+import com.akai.fire.utils.PatternButtons;
+import com.bitwig.extension.controller.api.CursorRemoteControlsPage;
 import com.bitwig.extension.controller.api.NoteOccurrence;
 import com.bitwig.extension.controller.api.NoteStep;
 import com.bitwig.extensions.framework.Layer;
@@ -18,6 +20,7 @@ public class SequencEncoderHandler extends Layer {
 
 	private final static String[] user1ParamNames = { "Volume", "Panning", "Send 1", "Send 2" };
 	private final static String[] user2ParamNames = { "Attack/Tune", "Decay/Decay", "Sust/Param1", "Decay/Param2" };
+	private final static String[] user2ShiftParamNames = { "param5", "param6", "param7", "param8" };
 
 	private final DrumSequenceMode parent;
 
@@ -27,6 +30,7 @@ public class SequencEncoderHandler extends Layer {
 	private final Layer mixerShiftLayer;
 	private final Layer user1Layer;
 	private final Layer user2Layer;
+	private final Layer user2ShiftLayer;
 
 	private Layer currentLayer;
 	private final OledDisplay oled;
@@ -56,40 +60,30 @@ public class SequencEncoderHandler extends Layer {
 	}
 
 	public SequencEncoderHandler(final DrumSequenceMode drumMode, final AkaiFireDrumSeqExtension driver,
-			final PadHandler padHandler) {
+                                 final PadHandler padHandler) {
 		super(driver.getLayers(), "Encoder_layer");
 		this.parent = drumMode;
-		this.oled = driver.getOled();
+        this.oled = driver.getOled();
 		this.padHandler = padHandler;
 		channelLayer = new Layer(driver.getLayers(), "ENC_CHANNEL_LAYER");
 		mixerLayer = new Layer(driver.getLayers(), "ENC_MIXER_LAYER");
 		mixerShiftLayer = new Layer(driver.getLayers(), "ENC_SHIFT_MIXER_LAYER");
 		user1Layer = new Layer(driver.getLayers(), "ENC_USER1_LAYER");
 		user2Layer = new Layer(driver.getLayers(), "ENC_USER2_LAYER");
+		user2ShiftLayer = new Layer(driver.getLayers(), "ENC_USER2SHIFT_LAYER");
 		encoders = driver.getEncoders();
 		assign(EncoderMode.CHANNEL, channelLayer, encoders);
 		assign(EncoderMode.MIXER, mixerLayer, encoders);
 		assign(EncoderMode.MIXER_SHIFT, mixerShiftLayer, encoders);
 		assignUser1Params(EncoderMode.USER_1, user1Layer, encoders);
 		assignUser2Params(EncoderMode.USER_2, user2Layer, encoders);
+		assignUser2ShiftParams(EncoderMode.USER_2_SHIFT, user2ShiftLayer, encoders);
 		currentLayer = channelLayer;
 		final BiColorButton modeButon = driver.getButton(NoteAssign.KNOB_MODE);
 		modeButon.bindPressed(this, this::handleModeAdvance, this::modeToLight);
-//		parent.getShiftActive().addValueObserver(this::handleShiftChange);
+
 	}
 
-	private void handleShiftChange(final boolean shiftActive) {
-		if (!parent.isActive()) {
-			return;
-		}
-		if (encoderMode == EncoderMode.MIXER_SHIFT || encoderMode == EncoderMode.MIXER) {
-			if (shiftActive) {
-				switchMode(EncoderMode.MIXER_SHIFT);
-			} else {
-				switchMode(EncoderMode.MIXER);
-			}
-		}
-	}
 
 	private void assign(final EncoderMode mode, final Layer layer, final TouchEncoder[] encoders) {
 		modeMapping.put(mode, layer);
@@ -112,18 +106,26 @@ public class SequencEncoderHandler extends Layer {
 		modeMapping.put(mode, layer);
 		for (int i = 0; i < encoders.length; i++) {
 			int index = i;
-			encoders[i].bindEncoder(layer, inc -> handleParam(index + 4, inc));
+			encoders[i].bindEncoder(layer, inc -> handleParam(index + 10, inc));
 
-			encoders[i].bindTouched(layer, touched -> handleTouchParam(index + 4, touched, user2ParamNames[index]));
+			encoders[i].bindTouched(layer, touched -> handleTouchParam(index + 10, touched, user2ParamNames[index]));
 			padHandler.bindPadMacros(layer);
+		}
+	}
+
+	private void assignUser2ShiftParams(final EncoderMode mode, final Layer layer, final TouchEncoder[] encoders) {
+		modeMapping.put(mode, layer);
+		for (int i = 0; i < encoders.length; i++) {
+			int index = i;
+			encoders[i].bindEncoder(layer, inc -> handleParam(index + 14, inc));
+
+			encoders[i].bindTouched(layer, touched -> handleTouchParam(index + 14, touched, user2ShiftParamNames[index]));
+			padHandler.bindPadMacrosShift(layer);
 		}
 	}
 
 	public EncoderMode nextMode() {
 		if (encoderMode == EncoderMode.CHANNEL) {
-			if (parent.isShiftHeld()) { // select MIXER_SHIFT on shift + mode
-				return EncoderMode.MIXER_SHIFT;
-			}
 			return EncoderMode.MIXER;
 		} else if (encoderMode == EncoderMode.MIXER || encoderMode == EncoderMode.MIXER_SHIFT) {
 			return EncoderMode.USER_1;
@@ -132,6 +134,27 @@ public class SequencEncoderHandler extends Layer {
 		}
 		return EncoderMode.CHANNEL;
 	}
+
+	public void toggleShiftForCurrentMode() {
+		switch (encoderMode) {
+			case MIXER:
+				switchMode(EncoderMode.MIXER_SHIFT);
+				break;
+			case MIXER_SHIFT:
+				switchMode(EncoderMode.MIXER);
+				break;
+			case USER_2:
+				switchMode(EncoderMode.USER_2_SHIFT);
+				break;
+			case USER_2_SHIFT:
+				switchMode(EncoderMode.USER_2);
+				break;
+			default:
+				// For modes that don't have a shift variant, do nothing or add custom behavior
+				break;
+		}
+	}
+
 
 	private void bindEncoder(final Layer layer, final TouchEncoder encoder, final NoteStepAccess access) {
 		encoder.bindEncoder(layer, inc -> handleMod(inc, access));
@@ -164,11 +187,20 @@ public class SequencEncoderHandler extends Layer {
 			return;
 		}
 		if (parent.isSelectHeld()) { // display encoder details on select + mode
-			oled.detailInfo("Encoder Mode", encoderMode.getInfo());
+			String infoToDisplay;
+			// For USER_2 modes, get the dynamic info from the remote controls page.
+			if (encoderMode == EncoderMode.USER_2 || encoderMode == EncoderMode.USER_2_SHIFT) {
+				CursorRemoteControlsPage remotePage = parent.getActiveRemoteControlsPage();
+				infoToDisplay = encoderMode.getDynamicInfo(remotePage);
+			} else {
+				infoToDisplay = encoderMode.getInfo();
+			}
+			oled.detailInfo("Encoder Mode", infoToDisplay);
 		} else {
 			switchMode(nextMode());
 		}
 	}
+
 
 	private void switchMode(final EncoderMode newMode) {
 		encoderMode = newMode;
@@ -177,9 +209,18 @@ public class SequencEncoderHandler extends Layer {
 		currentLayer.activate();
 		applyResolution(encoderMode);
 
-		oled.detailInfo("Encoder Mode", encoderMode.getInfo());
+		String infoToDisplay;
+		if (encoderMode == EncoderMode.USER_2 || encoderMode == EncoderMode.USER_2_SHIFT) {
+			// Fetch dynamic parameter names from the active remote controls page.
+			CursorRemoteControlsPage remotePage = parent.getActiveRemoteControlsPage();
+			infoToDisplay = encoderMode.getDynamicInfo(remotePage);
+		} else {
+			infoToDisplay = encoderMode.getInfo();
+		}
+		oled.detailInfo("Encoder Mode", infoToDisplay);
 		oled.clearScreenDelayed();
 	}
+
 
 	private void applyResolution(final EncoderMode mode) {
 		final EncoderAccess[] assignments = mode.getAssignments();

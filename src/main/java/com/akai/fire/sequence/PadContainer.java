@@ -3,10 +3,7 @@ package com.akai.fire.sequence;
 import com.akai.fire.ColorLookup;
 import com.akai.fire.display.ParameterDisplayBinding;
 import com.akai.fire.lights.RgbLigthState;
-import com.bitwig.extension.controller.api.CursorRemoteControlsPage;
-import com.bitwig.extension.controller.api.DrumPad;
-import com.bitwig.extension.controller.api.IntegerValue;
-import com.bitwig.extension.controller.api.Send;
+import com.bitwig.extension.controller.api.*;
 import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
 import com.bitwig.extensions.framework.values.DawColor;
@@ -54,6 +51,11 @@ class PadContainer {
     private final ParameterDisplayBinding macro2Binding;
     private final ParameterDisplayBinding macro3Binding;
     private final ParameterDisplayBinding macro4Binding;
+    private final ParameterDisplayBinding macro5Binding;
+    private final ParameterDisplayBinding macro6Binding;
+    private final ParameterDisplayBinding macro7Binding;
+    private final ParameterDisplayBinding macro8Binding;
+
 
 //    private static final String[] NOTE_NAMES = {
 //            "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G"
@@ -93,20 +95,27 @@ class PadContainer {
         panBinding = new ParameterDisplayBinding(1, index, pad.pan(), padHandler.getDisplayTarget(), true);
 
         remoteControls = pad.createDeviceBank(1).getDevice(0).createCursorRemoteControlsPage(8);
-        remoteControls.createPresetPageAction();
         remoteControls.selectedPageIndex().markInterested();
-        int howmanypages = remoteControls.selectedPageIndex().get();
+        remoteControls.getName().markInterested();
+        remoteControls.pageCount().markInterested();
+        remoteControls.pageNames().markInterested();
 
-        padHandler.parent.setActiveRemoteControlsPage(remoteControls);
 
-      //  macro1Binding = new ParameterDisplayBinding(4, index, remoteControls.getParameter(0), padHandler.getDiplayTarget(), false, null);
+        macro1Binding = new ParameterDisplayBinding(10, index, remoteControls.getParameter(0), padHandler.getDisplayTarget(), false);
+        macro2Binding = new ParameterDisplayBinding(11, index, remoteControls.getParameter(1), padHandler.getDisplayTarget(), false);
+        macro3Binding = new ParameterDisplayBinding(12, index, remoteControls.getParameter(2), padHandler.getDisplayTarget(), false);
+        macro4Binding = new ParameterDisplayBinding(13, index, remoteControls.getParameter(3), padHandler.getDisplayTarget(), false);
+        macro5Binding = new ParameterDisplayBinding(14, index, remoteControls.getParameter(4), padHandler.getDisplayTarget(), false);
+        macro6Binding = new ParameterDisplayBinding(15, index, remoteControls.getParameter(5), padHandler.getDisplayTarget(), false);
+        macro7Binding = new ParameterDisplayBinding(16, index, remoteControls.getParameter(6), padHandler.getDisplayTarget(), false);
+        macro8Binding = new ParameterDisplayBinding(17, index, remoteControls.getParameter(7), padHandler.getDisplayTarget(), false);
 
-        macro1Binding = new ParameterDisplayBinding(4, index, remoteControls.getParameter(0), padHandler.getDisplayTarget(), false);
-        macro2Binding = new ParameterDisplayBinding(5, index, remoteControls.getParameter(1), padHandler.getDisplayTarget(), false);
-        macro3Binding = new ParameterDisplayBinding(6, index, remoteControls.getParameter(2), padHandler.getDisplayTarget(), false);
-        macro4Binding = new ParameterDisplayBinding(7, index, remoteControls.getParameter(3), padHandler.getDisplayTarget(), false);
-        remoteControls.getParameter(0).value().markInterested();
-        remoteControls.getParameter(0).name().markInterested();
+
+        for (int i = 0; i < remoteControls.getParameterCount(); i++) {
+            remoteControls.getParameter(i).value().markInterested();
+            remoteControls.getParameter(i).name().markInterested();
+        }
+
 
 
 
@@ -128,6 +137,13 @@ class PadContainer {
         layer.addBinding(macro4Binding);
     }
 
+    public void bindMacrosShift(final Layer layer) {
+        layer.addBinding(macro5Binding);
+        layer.addBinding(macro6Binding);
+        layer.addBinding(macro7Binding);
+        layer.addBinding(macro8Binding);
+    }
+
     public RgbLigthState getPadColor() {
         return padColor;
     }
@@ -144,6 +160,7 @@ class PadContainer {
         this.selected = selected;
         if (this.selected) {
             padHandler.executePadSelection(this);
+            padHandler.parent.setActiveRemoteControlsPage(remoteControls);
         }
     }
 
@@ -215,17 +232,29 @@ class PadContainer {
             case 3:
                 sendBindings[1].modify(amount);
                 break;
-            case 4:
+            case 10:
                 macro1Binding.modify(amount);
                 break;
-            case 5:
+            case 11:
                 macro2Binding.modify(amount);
                 break;
-            case 6:
+            case 12:
                 macro3Binding.modify(amount);
                 break;
-            case 7:
+            case 13:
                 macro4Binding.modify(amount);
+                break;
+            case 14:
+                macro5Binding.modify(amount);
+                break;
+            case 15:
+                macro6Binding.modify(amount);
+                break;
+            case 16:
+                macro7Binding.modify(amount);
+                break;
+            case 17:
+                macro8Binding.modify(amount);
                 break;
             default:
                 break;
@@ -246,18 +275,29 @@ class PadContainer {
             case 3:
                 sendBindings[1].update();
                 break;
-            case 4:
+            case 10:
                 macro1Binding.update();
-
                 break;
-            case 5:
+            case 11:
                 macro2Binding.update();
                 break;
-            case 6:
+            case 12:
                 macro3Binding.update();
                 break;
-            case 7:
+            case 13:
                 macro4Binding.update();
+                break;
+            case 14:
+                macro5Binding.update();
+                break;
+            case 15:
+                macro6Binding.update();
+                break;
+            case 16:
+                macro7Binding.update();
+                break;
+            case 17:
+                macro8Binding.update();
                 break;
             default:
                 break;
