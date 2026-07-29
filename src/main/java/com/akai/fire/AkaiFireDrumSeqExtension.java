@@ -56,6 +56,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
     private OledDisplay oled;
     private ControllerHost host;
     private TouchEncoder mainEncoder;
+    private DiagnosticLog diagnosticLog;
 
     private Preferences preferences;
     private SettableEnumValue secondRowFuncPref;
@@ -70,6 +71,8 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
     @Override
     public void init() {
         host = getHost();
+        diagnosticLog = new DiagnosticLog(host);
+        diagnosticLog.log("EXTENSION_INIT");
         Arrays.fill(lastCcValue, -1);
 
         MainCursor mainCursor = new MainCursor(host, 0, 0);
@@ -334,11 +337,14 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
     }
 
     private void onMidi0(final ShortMidiMessage msg) {
+        diagnosticLog.log("MIDI_IN status=" + msg.getStatusByte() + " data1=" + msg.getData1()
+                + " data2=" + msg.getData2());
         getHost().println("MIDI " + msg.getStatusByte() + " " + msg.getData1() + " " + msg.getData2());
     }
 
     @Override
     public void exit() {
+        diagnosticLog.log("EXTENSION_EXIT");
         getHost().showPopupNotification("Exit Akai Fire Drum Seq");
     }
 
@@ -349,6 +355,10 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
 
     public void sendCC(final int ccNr, final int value) {
         if (lastCcValue[ccNr] == -1 || lastCcValue[ccNr] != value) {
+            if (ccNr >= NoteAssign.TRACK_SELECT_1.getNoteValue()
+                    && ccNr <= NoteAssign.TRACK_SELECT_4.getNoteValue()) {
+                diagnosticLog.log("ROW_LED_OUT cc=" + ccNr + " value=" + value);
+            }
             midiOut.sendMidi(Midi.CC, ccNr, value);
             lastCcValue[ccNr] = value;
         }
@@ -374,5 +384,9 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
 
     public PatternButtons getPatternButtons() {
         return patternButtons;
+    }
+
+    public DiagnosticLog getDiagnosticLog() {
+        return diagnosticLog;
     }
 }

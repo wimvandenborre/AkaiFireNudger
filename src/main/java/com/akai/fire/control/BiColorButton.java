@@ -56,6 +56,11 @@ public class BiColorButton {
 		layer.bindLightState(() -> lightSource.get(), light);
 	}
 
+	public void bindPressRelease(final Layer layer, final Consumer<Boolean> target) {
+		layer.bind(hwButton, hwButton.pressedAction(), () -> target.accept(true));
+		layer.bind(hwButton, hwButton.releasedAction(), () -> target.accept(false));
+	}
+
 	public void bindPressed(final Layer layer, final Consumer<Boolean> target,
 			final Supplier<BiColorLightState> lightSource) {
 		layer.bind(hwButton, hwButton.pressedAction(), () -> target.accept(true));

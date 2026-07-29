@@ -192,12 +192,27 @@ public class DrumSequenceMode extends Layer {
         final MultiStateHardwareLight[] stateLights = driver.getStateLights();
         bindEditButton(driver.getButton(NoteAssign.MUTE_1), "Select", selectHeld, stateLights[0], muteMode,
                 muteActionsTaken);
-        bindEditButton(driver.getButton(NoteAssign.MUTE_2), "Last Step", fixedLengthHeld, stateLights[1], soloMode,
-                soloActionsTaken);
+        if (padRowMuteHandler != null) {
+            bindSecondRowModeButton(driver.getButton(NoteAssign.MUTE_2), stateLights[1]);
+        } else {
+            bindEditButton(driver.getButton(NoteAssign.MUTE_2), "Last Step", fixedLengthHeld, stateLights[1], soloMode,
+                    soloActionsTaken);
+        }
         bindEditButton(driver.getButton(NoteAssign.MUTE_3), "Copy", copyHeld, stateLights[2], null, null);
         bindEditButton(driver.getButton(NoteAssign.MUTE_4), "Delete/Reset", deleteHeld, stateLights[3], null, null);
         final BiColorButton deleteButton = driver.getButton(NoteAssign.MUTE_4);
         deleteButton.bind(mainLayer, deleteHeld, BiColorLightState.GREEN_FULL, BiColorLightState.OFF);
+    }
+
+    private void bindSecondRowModeButton(final BiColorButton button, final MultiStateHardwareLight stateLight) {
+        button.bindPressRelease(mainLayer, padRowMuteHandler::handleModeButton);
+        mainLayer.bindLightState(this::getSecondRowModeLightState, stateLight);
+    }
+
+    private BiColorLightState getSecondRowModeLightState() {
+        return padRowMuteHandler.isSoloMode()
+                ? BiColorLightState.RECTANGLE_GREEN_FULL
+                : BiColorLightState.RECTANGLE_RED_FULL;
     }
 
     private void toggleRecordQuantization(boolean pressed) {
