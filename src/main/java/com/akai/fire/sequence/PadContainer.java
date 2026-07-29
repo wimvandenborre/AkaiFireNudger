@@ -158,11 +158,18 @@ class PadContainer {
 
     private void handlePadSelection(final int index, final boolean selected) {
         this.selected = selected;
+
+        if (padHandler.parent.isSelectHeld()) {
+            // If Select is held, do NOT execute selection logic
+            return;
+        }
+
         if (this.selected) {
             padHandler.executePadSelection(this);
             padHandler.parent.setActiveRemoteControlsPage(remoteControls);
         }
     }
+
 
     public RgbLigthState mutingColors() {
         if (!exists) {

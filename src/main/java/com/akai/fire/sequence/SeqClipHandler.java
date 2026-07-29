@@ -122,8 +122,8 @@ public class SeqClipHandler {
                 if (selectedSlotIndex != -1 && selectedSlotIndex != index) {
                     slot.replaceInsertionPoint().copySlotsOrScenes(slotBank.getItemAt(selectedSlotIndex));
                 }
-            } else if (parent.isSelectHeld()) {
-                slot.select();
+//            } else if (parent.isSelectHeld() && !parent.getPadHandler().isPadBeingHeld()) {
+//                slot.select();
             } else if (parent.isShiftHeld()) {
                 slot.color().set(getSlotColor(slot));
             } else {

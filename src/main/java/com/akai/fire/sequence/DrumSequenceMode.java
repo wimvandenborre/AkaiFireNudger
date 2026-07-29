@@ -90,6 +90,7 @@ public class DrumSequenceMode extends Layer {
         host = driver.getHost();
         oled = driver.getOled();
         app = host.createApplication();
+        app.recordQuantizationGrid().markInterested();
 
         SettableEnumValue secondRowFuncPref = driver.getSecondRowFuncPref();
         mainLayer = new Layer(getLayers(), getName() + "_MAIN");
@@ -199,6 +200,38 @@ public class DrumSequenceMode extends Layer {
         deleteButton.bind(mainLayer, deleteHeld, BiColorLightState.GREEN_FULL, BiColorLightState.OFF);
     }
 
+    private void toggleRecordQuantization(boolean pressed) {
+        if (!pressed) {
+            return; // Only execute on press, not on release
+        }
+
+        SettableEnumValue quantizationSetting = app.recordQuantizationGrid();
+        String currentSetting = quantizationSetting.get();
+
+        // Toggle between "OFF" and "1/16"
+        if ("OFF".equals(currentSetting)) {
+            quantizationSetting.set("1/16");
+            oled.paramInfo("Quantization", "Set to 1/16");
+        } else {
+            quantizationSetting.set("OFF");
+            oled.paramInfo("Quantization", "Disabled");
+        }
+    }
+
+    private BiColorLightState getQuantizationLightState() {
+        SettableEnumValue quantizationSetting = app.recordQuantizationGrid();
+
+        if (quantizationSetting == null) {
+            return BiColorLightState.AMBER_HALF; // Default to "OFF" state
+        }
+
+        String currentValue = quantizationSetting.get();
+
+        return "OFF".equals(currentValue) ? BiColorLightState.AMBER_HALF : BiColorLightState.AMBER_FULL;
+    }
+
+
+
     private void initButtonBehaviour(final AkaiFireDrumSeqExtension driver) {
 
         final BiColorButton accentButton = driver.getButton(NoteAssign.STEP_SEQ); // TODO combine with encoder
@@ -210,19 +243,23 @@ public class DrumSequenceMode extends Layer {
         final BiColorButton altButton = driver.getButton(NoteAssign.ALT);
         altButton.bind(mainLayer, altActive, BiColorLightState.GREEN_HALF, BiColorLightState.OFF);
 
-        final BiColorButton clipLaunchModeButton = driver.getButton(NoteAssign.NOTE);
-        clipLaunchModeButton.bindToggle(mainLayer, clipLaunchModeQuant, BiColorLightState.AMBER_FULL,
-                BiColorLightState.AMBER_HALF, oled,
-                new DisplayInfo().addLine("Clip Legato", 2, 0, TextJustification.CENTER)//
-                        .addLine(() -> clipLaunchModeQuant.get() ? "with quant" : "immediate", 2, 3,
-                                TextJustification.CENTER)//
-                        .create());
+        final BiColorButton quantizeButton = driver.getButton(NoteAssign.NOTE);
+        quantizeButton.bindPressed(mainLayer, this::toggleRecordQuantization, this::getQuantizationLightState);
+
+
+//        final BiColorButton clipLaunchModeButton = driver.getButton(NoteAssign.NOTE);
+//        clipLaunchModeButton.bindToggle(mainLayer, clipLaunchModeQuant, BiColorLightState.AMBER_FULL,
+//                BiColorLightState.AMBER_HALF, oled,
+//                new DisplayInfo().addLine("Clip Legato", 2, 0, TextJustification.CENTER)//
+//                        .addLine(() -> clipLaunchModeQuant.get() ? "with quant" : "immediate", 2, 3,
+//                                TextJustification.CENTER)//
+//                        .create());
 
 //        final BiColorButton retrigButton = driver.getButton(NoteAssign.DRUM);
 //        retrigButton.bind(mainLayer, this::retrigger, BiColorLightState.AMBER_FULL, BiColorLightState.AMBER_HALF);
 
-       // final BiColorButton pinButton = driver.getButton(NoteAssign.ALT);
-        //pinButton.bindPressed(mainLayer, this::handleClipPinning, this::getPinnedState);
+        final BiColorButton pinButton = driver.getButton(NoteAssign.STOP);
+        pinButton.bindPressed(mainLayer, this::handleClipPinning, this::getPinnedState);
 
         final BiColorButton resolutionButton = driver.getButton(NoteAssign.PERFORM);
         resolutionButton.bindPressed(mainLayer, resolutionHandler::handlePressed, resolutionHandler::getLightState);
@@ -710,7 +747,7 @@ public class DrumSequenceMode extends Layer {
 
     private void applyValues(final NoteStep dest, final NoteStep src) {
         // TODO: this is a bug, somewhere the chance is lost
-        dest.setChance(src.chance()); // src.chance()
+        dest.setChance(1); // src.chance()
         dest.setTimbre(src.timbre());
         dest.setPressure(src.pressure());
         dest.setRepeatCount(src.repeatCount());

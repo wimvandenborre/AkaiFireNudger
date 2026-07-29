@@ -118,25 +118,36 @@ public class PadHandler {
 
     private void handlePadSelection(final PadContainer pad, final boolean pressed) {
         if (!pressed) {
+            // When the pad is released, stop the note
+            triggerNote(pad, false);
             padsHeld.remove(pad.index);
-        } else {
-            if (parent.isCopyHeld()) {
-                doNotesPadCopy(pad);
-            } else if (parent.isShiftHeld()) {
-                pad.pad.color().set(getPadColor(pad.pad));
-            } else if (parent.isDeleteHeld()) {
-                if (pad.index == selectedPadIndex) {
-                    cursorClip.clearStepsAtY(0, 0);
-                } else {
-                    parent.registerPendingAction(new NoteAction(selectedPadIndex, pad.index, Type.CLEAR));
-                    pad.pad.selectInEditor();
-                }
+            return;
+        }
+
+        if (parent.isSelectHeld()) {
+            // If Select is held, play the note instead of selecting
+            triggerNote(pad, true);
+            return; // Skip the rest of the selection logic
+        }
+
+        if (parent.isCopyHeld()) {
+            doNotesPadCopy(pad);
+        } else if (parent.isShiftHeld()) {
+            pad.pad.color().set(getPadColor(pad.pad));
+        } else if (parent.isDeleteHeld()) {
+            if (pad.index == selectedPadIndex) {
+                cursorClip.clearStepsAtY(0, 0);
             } else {
+                parent.registerPendingAction(new NoteAction(selectedPadIndex, pad.index, Type.CLEAR));
                 pad.pad.selectInEditor();
-                padsHeld.add(pad.index);
             }
+        } else {
+            // Normal pad selection (only if Select is not held)
+            pad.pad.selectInEditor();
+            padsHeld.add(pad.index);
         }
     }
+
 
     private Color getPadColor(DrumPad pad) {
         Color[] colors = {
@@ -200,6 +211,12 @@ public class PadHandler {
     }
 
     public void executePadSelection(final PadContainer pad) {
+        if (parent.isSelectHeld()) { // If the Select button is held, play notes instead
+            triggerNote(pad, true); // Start playing the note
+            return; // Skip the normal selection behavior
+        }
+
+        // Normal pad selection behavior
         currentPadColor = pad.getBitwigPadColor();
         selectedPad = pad;
         focusOnSelectedPad();
@@ -221,6 +238,22 @@ public class PadHandler {
             parent.clearPendingAction();
         }
     }
+
+    private void triggerNote(final PadContainer pad, boolean play) {
+        int notePitch = drumScrollOffset + pad.getIndex();
+
+        if (play) {
+            // Always send a Note Off before Note On to ensure retriggering works
+            //int currentVelocity = parent.getAccentHandler().getCurrenVel();
+            noteInput.sendRawMidiEvent(0x80, notePitch, 0); // Note Off
+            noteInput.sendRawMidiEvent(0x90, notePitch, 100); // Note On
+        } else {
+            // Stop the note when releasing the pad
+            noteInput.sendRawMidiEvent(0x80, notePitch, 0); // Note Off
+        }
+    }
+
+
 
     public void focusOnSelectedPad() {
         final int padIndex = selectedPad != null ? selectedPad.index : 0;
