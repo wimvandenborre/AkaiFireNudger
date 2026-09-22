@@ -83,6 +83,7 @@ public class DrumSequenceMode extends Layer {
 
     private CursorRemoteControlsPage activeRemoteControlsPage;
     private EuclideanPattern euclideanPattern;
+    private final EuclideanRotations euclideanRotations;
     private int euclideanSteps;
     private int euclideanOffset;
     private double euclideanResolution;
@@ -175,6 +176,9 @@ public class DrumSequenceMode extends Layer {
         mainEncoder.setStepSize(0.4);
         mainEncoder.bindEncoder(mainLayer, this::handleMainEncoder);
         mainEncoder.bindTouched(mainLayer, this::handeMainEncoderPress);
+
+        // Register rotation settings after the other controls.
+        euclideanRotations = new EuclideanRotations(host.getDocumentState());
     }
 
 
@@ -607,7 +611,28 @@ public class DrumSequenceMode extends Layer {
 
     private void handleEuclideanEncoder(final int inc) {
         final int steps = Math.min(assignments.length, positionHandler.getAvailableSteps());
-        if (!cursorClip.exists().get() || padHandler.selectedPad == null || steps < 1) {
+        final int note = padHandler.getSelectedNote();
+        final boolean rotating = isAltHeld();
+        if (note < 0 || note >= 128) {
+            oled.paramInfo("Euclidean", "Select a pad");
+            oled.clearScreenDelayed();
+            return;
+        }
+        if (rotating && !EuclideanRotations.supports(note)) {
+            oled.paramInfo("Rotation", "Notes 36-52 only");
+            oled.clearScreenDelayed();
+            return;
+        }
+        if (rotating) {
+            // Rotation can be prepared before creating a clip or adding any pulses.
+            euclideanRotations.turn(note, inc, steps > 0 ? steps : assignments.length);
+        }
+        if (!cursorClip.exists().get() || steps < 1) {
+            if (rotating) {
+                oled.paramInfo("Rotation", "+" + euclideanRotations.get(note), getPadInfo());
+                oled.clearScreenDelayed();
+                return;
+            }
             oled.paramInfo("Euclidean", "Select a pad + clip");
             oled.clearScreenDelayed();
             return;
@@ -632,10 +657,20 @@ public class DrumSequenceMode extends Layer {
             euclideanResolution = resolution;
         }
         registerModifiedSteps(getHeldNotes());
-        euclideanPattern.turn(inc, occupied,
+        final int rotation = Math.floorMod(euclideanRotations.get(note), steps);
+        euclideanPattern.rotate(rotation, occupied,
                 step -> cursorClip.setStep(step, 0, accentHandler.getCurrenVel(), resolution * gatePercent),
                 step -> cursorClip.clearStep(0, step, 0));
-        oled.paramInfo("Euclidean", euclideanPattern.getPulses() + "/" + steps, getPadInfo());
+        if (!rotating) {
+            euclideanPattern.turn(inc, occupied,
+                    step -> cursorClip.setStep(step, 0, accentHandler.getCurrenVel(), resolution * gatePercent),
+                    step -> cursorClip.clearStep(0, step, 0));
+        }
+        if (rotating) {
+            oled.paramInfo("Rotation", "+" + rotation, getPadInfo());
+        } else {
+            oled.paramInfo("Euclidean", euclideanPattern.getPulses() + "/" + steps + " R+" + rotation, getPadInfo());
+        }
         oled.clearScreenDelayed();
     }
 

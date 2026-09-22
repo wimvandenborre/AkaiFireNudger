@@ -33,3 +33,21 @@ pad/clip/page/grid starts a fresh overlay, treating existing notes as protected.
 
 Regression checks: `mvn -o clean package`, then
 `java -cp target/classes:target/test-classes com.akai.fire.sequence.EuclideanPatternChecks`.
+
+
+### Euclidean rotation
+
+Hold **Shift + Alt** and turn **Select** to rotate the Euclidean starting step.
+Set this before adding pulses, or rotate the current generated pattern without
+moving manual notes. With 16 steps, rotation +2 and four pulses places hits at
+3, 7, 11, 15. Rotation wraps at the active page length.
+
+Drum MIDI notes 36–52 each have their own rotation stored in Bitwig's
+project document settings (Euclidean pad rotation). Save the project to retain
+these offsets; saving a template provides defaults for future songs. Swapping
+Drum Rack devices does not change the offsets. These settings are shared by
+racks using the same note positions in that project. Only rotation is persisted;
+existing clip notes remain protected when a fresh overlay starts.
+
+Settings regression check (after building):
+`java -cp target/classes:target/test-classes:$HOME/.m2/repository/com/bitwig/extension-api/20/extension-api-20.jar com.akai.fire.sequence.EuclideanRotationChecks`.

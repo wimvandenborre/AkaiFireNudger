@@ -31,6 +31,7 @@ public final class EuclideanPatternChecks {
         }
         delayedObservers();
         manualEditsKeepPulseCount();
+        rotationChecks();
         System.out.println("Euclidean tests passed: 16 photos, lengths 1–32, reversibility, original-note protection, delayed observers, manual edits.");
     }
 
@@ -138,6 +139,45 @@ public final class EuclideanPatternChecks {
         check(overlay.getPulses() == 5, "Manual deletion reset pulse index");
         overlay.turn(-5, stale, step -> notes[step] = true, step -> notes[step] = false);
         check(Arrays.equals(notes, manual), "Manual deletion leaves remaining manual notes intact");
+    }
+
+    private static void rotationChecks() {
+        for (int length = 1; length <= 32; length++) {
+            boolean[] notes = new boolean[length];
+            boolean[] manual = new boolean[length];
+            notes[length - 1] = manual[length - 1] = true;
+            EuclideanPattern overlay = new EuclideanPattern(notes);
+            // Preset the start before adding pulses.
+            overlay.rotate(2, notes.clone(), step -> notes[step] = true, step -> {
+                check(!manual[step], "Rotation deleted manual note");
+                notes[step] = false;
+            });
+            int pulses = Math.min(4, length);
+            turn(overlay, pulses, notes, manual);
+            for (int rotation = 2; rotation >= -length; rotation--) {
+                overlay.rotate(rotation, notes.clone(), step -> {
+                    check(!manual[step], "Rotation overwrote manual note");
+                    notes[step] = true;
+                }, step -> {
+                    check(!manual[step], "Rotation removed manual note");
+                    notes[step] = false;
+                });
+                boolean[] base = EuclideanPattern.pattern(length, pulses);
+                boolean[] expected = manual.clone();
+                for (int step = 0; step < length; step++) {
+                    expected[Math.floorMod(step + rotation, length)] |= base[step];
+                }
+                check(Arrays.equals(notes, expected), "Rotated positions");
+                check(overlay.getPulses() == pulses, "Rotation changed pulse count");
+            }
+            turn(overlay, -pulses, notes, manual);
+            check(Arrays.equals(notes, manual), "Rotated overlay did not return to manual notes");
+        }
+        boolean[] offbeats = new boolean[16];
+        EuclideanPattern overlay = new EuclideanPattern(offbeats);
+        overlay.rotate(2, offbeats.clone(), step -> offbeats[step] = true, step -> offbeats[step] = false);
+        turn(overlay, 4, offbeats, new boolean[16]);
+        for (int i = 0; i < 16; i++) check(offbeats[i] == (i % 4 == 2), "Offbeat hi-hat");
     }
 
     private static void check(boolean condition, String message) {

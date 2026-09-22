@@ -8,6 +8,7 @@ final class EuclideanPattern {
     private final boolean[] generatedSteps;
     private final boolean[] pendingRemoval;
     private int pulses;
+    private int rotation;
 
     EuclideanPattern(final boolean[] occupied) {
         protectedSteps = occupied.clone();
@@ -44,14 +45,31 @@ final class EuclideanPattern {
 
     void turn(final int increment, final boolean[] occupied,
               final IntConsumer add, final IntConsumer remove) {
-        if (occupied.length != generatedSteps.length) {
-            throw new IllegalArgumentException("Step count changed during overlay");
-        }
         final int next = Math.max(0, Math.min(generatedSteps.length, pulses + increment));
         if (next == pulses) {
             return;
         }
-        final boolean[] pattern = pattern(generatedSteps.length, next);
+        apply(next, rotation, occupied, add, remove);
+    }
+
+    void rotate(final int rotation, final boolean[] occupied,
+                final IntConsumer add, final IntConsumer remove) {
+        final int nextRotation = Math.floorMod(rotation, generatedSteps.length);
+        if (nextRotation != this.rotation) {
+            apply(pulses, nextRotation, occupied, add, remove);
+        }
+    }
+
+    private void apply(final int next, final int rotation, final boolean[] occupied,
+                       final IntConsumer add, final IntConsumer remove) {
+        if (occupied.length != generatedSteps.length) {
+            throw new IllegalArgumentException("Step count changed during overlay");
+        }
+        final boolean[] base = pattern(generatedSteps.length, next);
+        final boolean[] pattern = new boolean[base.length];
+        for (int step = 0; step < base.length; step++) {
+            pattern[(step + rotation) % base.length] = base[step];
+        }
         for (int step = 0; step < pattern.length; step++) {
             // Also protect notes added elsewhere after the overlay began.
             if (!occupied[step]) {
@@ -72,5 +90,6 @@ final class EuclideanPattern {
             generatedSteps[step] = wanted;
         }
         pulses = next;
+        this.rotation = rotation;
     }
 }

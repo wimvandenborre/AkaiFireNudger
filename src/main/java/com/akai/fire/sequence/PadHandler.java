@@ -261,6 +261,10 @@ public class PadHandler {
         cursorClip.scrollToKey(drumScrollOffset + padIndex);
     }
 
+    int getSelectedNote() {
+        return selectedPad == null ? -1 : drumScrollOffset + selectedPad.index;
+    }
+
     public String getPadInfo() {
         if (selectedPad != null) {
             return selectedPad.getName();
