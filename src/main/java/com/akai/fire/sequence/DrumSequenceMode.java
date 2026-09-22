@@ -177,6 +177,8 @@ public class DrumSequenceMode extends Layer {
         mainEncoder.bindEncoder(mainLayer, this::handleMainEncoder);
         mainEncoder.bindTouched(mainLayer, this::handeMainEncoderPress);
 
+        accentHandler.initPreferences(host.getPreferences());
+
         // Register rotation settings after the other controls.
         euclideanRotations = new EuclideanRotations(host.getDocumentState());
     }
@@ -356,7 +358,7 @@ public class DrumSequenceMode extends Layer {
             } else {
                 if (note == null || note.state() == State.Empty || note.state() == State.NoteSustain) {
                     registerManualEuclideanStep(index, true);
-                    cursorClip.setStep(index, 0, accentHandler.getCurrenVel(),
+                    cursorClip.setStep(index, 0, accentHandler.velocityForNewStep(index),
                             positionHandler.getGridResolution() * gatePercent);
                     addedSteps.add(index);
                 }
@@ -579,6 +581,30 @@ public class DrumSequenceMode extends Layer {
         }
     }
 
+    String velocityGrooveContext() {
+        return cursorClip.getTrack().position().get() + ":" + cursorClip.clipLauncherSlot().sceneIndex().get()
+                + ":" + cursorClip.exists().get() + ":" + padHandler.getSelectedNote()
+                + ":" + positionHandler.getStepOffset() + ":" + getGridResolution()
+                + ":" + cursorClip.getLoopStart().get() + ":" + cursorClip.getLoopLength().get();
+    }
+
+    void applyVelocityGroove(final VelocityGroove groove) {
+        if (!cursorClip.exists().get()) return;
+        registerModifiedSteps(getHeldNotes());
+        int steps = Math.min(32, positionHandler.getAvailableSteps());
+        for (int channel = 0; channel < 16; channel++) {
+            for (int step = 0; step < steps; step++) {
+                NoteStep note = cursorClip.getStep(channel, step, 0);
+                int key = channel * 32 + step;
+                if (note.state() == State.NoteOn) {
+                    note.setVelocity(groove.apply(key, positionHandler.getStepOffset() + step, note.velocity()));
+                } else {
+                    groove.remove(key);
+                }
+            }
+        }
+    }
+
     private void handleMainEncoder(final int inc) {
         if (isShiftHeld()) {
             handleEuclideanEncoder(inc);
@@ -659,11 +685,11 @@ public class DrumSequenceMode extends Layer {
         registerModifiedSteps(getHeldNotes());
         final int rotation = Math.floorMod(euclideanRotations.get(note), steps);
         euclideanPattern.rotate(rotation, occupied,
-                step -> cursorClip.setStep(step, 0, accentHandler.getCurrenVel(), resolution * gatePercent),
+                step -> cursorClip.setStep(step, 0, accentHandler.velocityForNewStep(step), resolution * gatePercent),
                 step -> cursorClip.clearStep(0, step, 0));
         if (!rotating) {
             euclideanPattern.turn(inc, occupied,
-                    step -> cursorClip.setStep(step, 0, accentHandler.getCurrenVel(), resolution * gatePercent),
+                    step -> cursorClip.setStep(step, 0, accentHandler.velocityForNewStep(step), resolution * gatePercent),
                     step -> cursorClip.clearStep(0, step, 0));
         }
         if (rotating) {

@@ -51,3 +51,30 @@ existing clip notes remain protected when a fresh overlay starts.
 
 Settings regression check (after building):
 `java -cp target/classes:target/test-classes:$HOME/.m2/repository/com/bitwig/extension-api/20/extension-api-20.jar com.akai.fire.sequence.EuclideanRotationChecks`.
+
+### Velocity groove
+
+Hold **STEP SEQ**, press **Select** to switch between Groove shape and Groove
+amount; turn Select to edit the displayed field. Normal and Accent velocity are
+configured in the extension preferences under **General velocity** (defaults
+100 and 127, independently adjustable from 1 to 127). Changes also update the
+active note-repeat input velocity.
+Pressing Select while held does not toggle Accent on release. A plain STEP SEQ
+press still toggles Accent. Shift + Select still controls Euclidean pulses.
+
+The four shapes are **Agogo, Timbales, Congas, Bongo**, reconstructed from the
+16 bar heights in [Torso's illustrations](https://docs.torsoelectronics.com/t1/parameter-reference/groove/accent-groove/).
+These are diagram-derived approximations, not extracted firmware presets.
+Each contour repeats every **16 grid steps** (one bar at 1/16 resolution).
+This version does not implement T-1's adjustable groove length or interpolation.
+
+Amount (0–100%) applies bipolar variation around each note's original velocity,
+clamped to MIDI 1–127. Only note velocities on the selected pad's **current page**
+are edited; rests, timing, other pads, and Euclidean ownership stay intact.
+New Fire/Euclidean steps inherit the active groove. Amount zero restores the
+baseline during the current edit context; manual velocity edits become a new
+baseline. Changing pad/clip/page/grid/loop context starts a fresh overlay at 0%.
+The resulting note velocities save with the clip; shape/amount and the original
+velocity snapshot are temporary, and are not saved across extension reloads.
+
+Check with `java -cp target/classes:target/test-classes com.akai.fire.sequence.VelocityGrooveChecks`.

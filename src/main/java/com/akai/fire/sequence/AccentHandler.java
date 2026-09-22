@@ -1,10 +1,10 @@
 package com.akai.fire.sequence;
 
 import com.akai.fire.lights.BiColorLightState;
+import com.bitwig.extension.controller.api.Preferences;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
 
 public class AccentHandler {
-	private static final int ACCENT_OFFSET = 11;
 	private int velStandard = 100;
 	private int velAccented = 127;
 	private final BooleanValueObject accentActive = new BooleanValueObject();
@@ -12,10 +12,29 @@ public class AccentHandler {
 	private boolean modified = false;
 	private final DrumSequenceMode parent;
 	private int velPointer = 0;
+	private VelocityGroove groove = new VelocityGroove();
+	private String grooveContext = "";
 
 	public AccentHandler(final DrumSequenceMode drumSequenceMode) {
 		this.parent = drumSequenceMode;
 	}
+
+    void initPreferences(final Preferences preferences) {
+        preferences.getNumberSetting("Normal velocity", "General velocity", 1, 127, 1, "", 100)
+                .addRawValueObserver(value -> {
+                    velStandard = (int) Math.round(value);
+                    updateInputVelocity();
+                });
+        preferences.getNumberSetting("Accent velocity", "General velocity", 1, 127, 1, "", 127)
+                .addRawValueObserver(value -> {
+                    velAccented = (int) Math.round(value);
+                    updateInputVelocity();
+                });
+    }
+
+    private void updateInputVelocity() {
+        parent.getPadHandler().getNoteRepeaterHandler().setNoteInputVelocity(getCurrenVel());
+    }
 
 	public int getCurrenVel() {
 		return accentActive.get() ? velAccented : velStandard;
@@ -44,28 +63,34 @@ public class AccentHandler {
 	}
 
 	private void displayAccentInfo() {
-		parent.getOled().lineInfo("Accents", //
-				String.format("%sNormal: %d\n%sAccent: %d", velPointer == 0 ? ">" : " ", velStandard, //
-						velPointer == 1 ? ">" : " ", velAccented));
-	}
+        final VelocityGroove current = currentGroove();
+        final String[] labels = {"Groove shape", "Groove amount"};
+        final String[] values = {VelocityGroove.NAMES[current.shape()], current.amount() + "%"};
+        parent.getOled().paramInfo(labels[velPointer], values[velPointer], "Press Select: next");
+    }
+
+    private VelocityGroove currentGroove() {
+        String context = parent.velocityGrooveContext();
+        if (!context.equals(grooveContext)) {
+            grooveContext = context;
+            groove = new VelocityGroove();
+        }
+        return groove;
+    }
+
+    int velocityForNewStep(int step) {
+        return currentGroove().newNote(step, parent.getPositionHandler().getStepOffset() + step, getCurrenVel());
+    }
 
 	void handleMainEncoder(final int inc) {
 		if (!accenButtonHeld) {
 			return;
 		}
-		if (velPointer == 0) {
-			final int newValue = velStandard + inc;
-			if (newValue > 0 && newValue < velAccented - ACCENT_OFFSET) {
-				velStandard = newValue;
-				displayAccentInfo();
-			}
-		} else if (velPointer == 1) {
-			final int newValue = velAccented + inc;
-			if (newValue > velStandard + ACCENT_OFFSET && newValue < 128) {
-				velAccented = newValue;
-				displayAccentInfo();
-			}
-		}
+        VelocityGroove current = currentGroove();
+        if (velPointer == 0) current.turnShape(inc);
+        else current.turnAmount(inc);
+        parent.applyVelocityGroove(current);
+        displayAccentInfo();
 		modified = true;
 		this.parent.getPadHandler().getNoteRepeaterHandler().setNoteInputVelocity(this.getCurrenVel());
 	}
@@ -74,6 +99,7 @@ public class AccentHandler {
 		if (!accenButtonHeld || !pressed) {
 			return;
 		}
+		modified = true;
 		velPointer = (velPointer + 1) % 2;
 		displayAccentInfo();
 	}
