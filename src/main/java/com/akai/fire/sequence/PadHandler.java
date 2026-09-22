@@ -256,6 +256,7 @@ public class PadHandler {
 
 
     public void focusOnSelectedPad() {
+        parent.resetEuclideanPattern();
         final int padIndex = selectedPad != null ? selectedPad.index : 0;
         cursorClip.scrollToKey(drumScrollOffset + padIndex);
     }
@@ -428,12 +429,17 @@ public class PadHandler {
             Parameter parameter = remotePage.getParameter(remoteParamIndex);
             if (parameter != null) {
                 // Mark the parameter name as interested so we can read its current value.
-                realParamName = parameter.name().get();
+                String assignedName = parameter.name().get();
+                if (assignedName != null && !assignedName.isBlank()) {
+                    realParamName = assignedName;
+                }
             }
         }
 
         displayTarget.setTypeIndex(typeIndex, realParamName);
         displayTarget.activate();
+        // Show the assignment even when there is no selected pad/value yet.
+        parent.getOled().paramInfo(realParamName, parent.getPadInfo());
     }
 
 

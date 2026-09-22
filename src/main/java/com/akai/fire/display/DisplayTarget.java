@@ -40,7 +40,7 @@ public class DisplayTarget {
 
 	public void deactivate() {
 		active = false;
-		oled.clearScreen();
+		oled.clearScreenDelayed();
 	}
 
 	public void setName(final String name) {

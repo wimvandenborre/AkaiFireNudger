@@ -12,7 +12,7 @@ public class ParameterDisplayBinding extends Binding<Parameter, DisplayTarget> {
 
 	ControllerHost host = AkaiFireDrumSeqExtension.getGlobalHost();
 	private double rawValue;
-	private String displayValue;
+	private String displayValue = "";
 	private final int index;
 	private final int typeIndex;
 	private final boolean bipolar;

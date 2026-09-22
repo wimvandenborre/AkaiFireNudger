@@ -108,6 +108,7 @@ public class SeqClipHandler {
         final boolean hasContent = slot.hasContent().get();
         if (hasContent) {
             if (parent.isDeleteHeld()) {
+                parent.resetEuclideanPattern();
                 if (parent.isShiftHeld()) { // SHIFT + DELETE => remove clip
                     slot.deleteObject();
                 } else { // SHIFT + DELETE => clear all steps

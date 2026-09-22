@@ -82,6 +82,10 @@ public class DrumSequenceMode extends Layer {
     private int blinkState;
 
     private CursorRemoteControlsPage activeRemoteControlsPage;
+    private EuclideanPattern euclideanPattern;
+    private int euclideanSteps;
+    private int euclideanOffset;
+    private double euclideanResolution;
 
 
     public DrumSequenceMode(final AkaiFireDrumSeqExtension driver) {
@@ -121,6 +125,12 @@ public class DrumSequenceMode extends Layer {
             }
         });
         cursorClip.isPinned().markInterested();
+        cursorClip.exists().markInterested();
+        cursorClip.exists().addValueObserver(exists -> resetEuclideanPattern());
+        cursorClip.clipLauncherSlot().sceneIndex().addValueObserver(index -> resetEuclideanPattern());
+        cursorClip.getTrack().position().addValueObserver(index -> resetEuclideanPattern());
+        cursorClip.getLoopStart().addValueObserver(start -> resetEuclideanPattern());
+        cursorClip.getLoopLength().addValueObserver(length -> resetEuclideanPattern());
 
         positionHandler = new StepViewPosition(cursorClip, 32, "AKAI");
 
@@ -283,6 +293,7 @@ public class DrumSequenceMode extends Layer {
         shiftLeftButton.bindPressed(mainLayer, p -> {
             if (shiftActive.get()) {
                 // If shift is held, perform the undo action.
+                resetEuclideanPattern();
                 getApplication().undo();
             } else {
                 // Otherwise, perform the move pattern action.
@@ -294,6 +305,7 @@ public class DrumSequenceMode extends Layer {
         shiftRightButton.bindPressed(mainLayer, p -> {
             if (shiftActive.get()) {
                 // If shift is held, perform the redo action.
+                resetEuclideanPattern();
                 getApplication().redo();
             } else {
                 // Otherwise, perform the move pattern action.
@@ -324,6 +336,7 @@ public class DrumSequenceMode extends Layer {
                 // do nothing
             } else if (note != null && note.state() == State.NoteOn && !addedSteps.contains(index)) {
                 if (!modifiedSteps.contains(index)) {
+                    registerManualEuclideanStep(index, false);
                     cursorClip.toggleStep(index, 0, accentHandler.getCurrenVel());
                 } else {
                     modifiedSteps.remove(index);
@@ -338,6 +351,7 @@ public class DrumSequenceMode extends Layer {
                 handleNoteCopyAction(index, note);
             } else {
                 if (note == null || note.state() == State.Empty || note.state() == State.NoteSustain) {
+                    registerManualEuclideanStep(index, true);
                     cursorClip.setStep(index, 0, accentHandler.getCurrenVel(),
                             positionHandler.getGridResolution() * gatePercent);
                     addedSteps.add(index);
@@ -354,6 +368,7 @@ public class DrumSequenceMode extends Layer {
             final int vel = (int) Math.round(copyNote.velocity() * 127);
             final double duration = copyNote.duration();
             expectedNoteChanges.put(index, copyNote);
+            registerManualEuclideanStep(index, true);
             cursorClip.setStep(index, 0, vel, duration);
         } else if (note != null && note.state() == State.NoteOn) {
             copyNote = note;
@@ -420,6 +435,7 @@ public class DrumSequenceMode extends Layer {
 
     // Existing whole-step shifting (unchanged):
     private void movePatternWhole(final int dir) {
+        resetEuclideanPattern();
         final List<NoteStep> notes = getOnNotes();
         final int availableSteps = positionHandler.getAvailableSteps();
         cursorClip.clearStepsAtY(0, 0);
@@ -491,6 +507,7 @@ public class DrumSequenceMode extends Layer {
      */
 
     private void movePatternFractional(Clip clip, int dir) {
+        resetEuclideanPattern();
         // Iterate over a copy of the currentNotesInClip keys (fine-grid coordinates: 0–511)
         for (Integer fineX : new ArrayList<>(currentNotesInClip.keySet())) {
             Map<Integer, Integer> stepNotes = currentNotesInClip.get(fineX);
@@ -559,13 +576,67 @@ public class DrumSequenceMode extends Layer {
     }
 
     private void handleMainEncoder(final int inc) {
-        if (accentHandler.isHolding()) {
+        if (isShiftHeld()) {
+            handleEuclideanEncoder(inc);
+        } else if (accentHandler.isHolding()) {
             accentHandler.handleMainEncoder(inc);
         } else if (resolutionHandler.isHolding()) {
             resolutionHandler.handleMainEncoder(inc);
         } else {
             padHandler.handleMainEncoder(inc);
         }
+    }
+
+    /** Commit the current overlay; subsequent turns protect all notes now present. */
+    void resetEuclideanPattern() {
+        euclideanPattern = null;
+    }
+
+    private void registerManualEuclideanStep(final int index, final boolean present) {
+        if (euclideanPattern == null) {
+            return;
+        }
+        if (euclideanSteps != Math.min(assignments.length, positionHandler.getAvailableSteps())
+                || euclideanOffset != positionHandler.getStepOffset()
+                || euclideanResolution != getGridResolution()) {
+            resetEuclideanPattern();
+            return;
+        }
+        euclideanPattern.manualStep(index, present);
+    }
+
+    private void handleEuclideanEncoder(final int inc) {
+        final int steps = Math.min(assignments.length, positionHandler.getAvailableSteps());
+        if (!cursorClip.exists().get() || padHandler.selectedPad == null || steps < 1) {
+            oled.paramInfo("Euclidean", "Select a pad + clip");
+            oled.clearScreenDelayed();
+            return;
+        }
+        final int offset = positionHandler.getStepOffset();
+        final double resolution = getGridResolution();
+        final boolean[] occupied = new boolean[steps];
+        for (int step = 0; step < steps; step++) {
+            // Protect sustained notes and notes on every MIDI channel as well.
+            for (int channel = 0; channel < 16; channel++) {
+                if (cursorClip.getStep(channel, step, 0).state() != State.Empty) {
+                    occupied[step] = true;
+                    break;
+                }
+            }
+        }
+        if (euclideanPattern == null || euclideanSteps != steps
+                || euclideanOffset != offset || euclideanResolution != resolution) {
+            euclideanPattern = new EuclideanPattern(occupied);
+            euclideanSteps = steps;
+            euclideanOffset = offset;
+            euclideanResolution = resolution;
+        }
+        registerModifiedSteps(getHeldNotes());
+        euclideanPattern.turn(inc, occupied,
+                step -> cursorClip.setStep(step, 0, accentHandler.getCurrenVel(), resolution * gatePercent),
+                step -> cursorClip.clearStep(0, step, 0));
+        oled.paramInfo("Euclidean", euclideanPattern.getPulses() + "/" + steps, getPadInfo());
+        oled.clearScreenDelayed();
     }
 
     private void handeMainEncoderPress(final boolean press) {
@@ -790,6 +861,7 @@ public class DrumSequenceMode extends Layer {
 
     @Override
     protected void onDeactivate() {
+        resetEuclideanPattern();
         currentLayer.deactivate();
         shiftLayer.deactivate();
         encoderLayer.deactivate();

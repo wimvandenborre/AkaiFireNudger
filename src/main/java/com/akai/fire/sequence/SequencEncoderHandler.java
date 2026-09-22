@@ -100,6 +100,7 @@ public class SequencEncoderHandler extends Layer {
 		for (int i = 0; i < encoders.length; i++) {
 			bindPadEncoder(i, layer, encoders[i], user1ParamNames[i]);
 		}
+		padHandler.bindPadParameters(layer);
 	}
 
 	private void assignUser2Params(final EncoderMode mode, final Layer layer, final TouchEncoder[] encoders) {
@@ -109,8 +110,8 @@ public class SequencEncoderHandler extends Layer {
 			encoders[i].bindEncoder(layer, inc -> handleParam(index + 10, inc));
 
 			encoders[i].bindTouched(layer, touched -> handleTouchParam(index + 10, touched, user2ParamNames[index]));
-			padHandler.bindPadMacros(layer);
 		}
+		padHandler.bindPadMacros(layer);
 	}
 
 	private void assignUser2ShiftParams(final EncoderMode mode, final Layer layer, final TouchEncoder[] encoders) {
@@ -120,8 +121,8 @@ public class SequencEncoderHandler extends Layer {
 			encoders[i].bindEncoder(layer, inc -> handleParam(index + 14, inc));
 
 			encoders[i].bindTouched(layer, touched -> handleTouchParam(index + 14, touched, user2ShiftParamNames[index]));
-			padHandler.bindPadMacrosShift(layer);
 		}
+		padHandler.bindPadMacrosShift(layer);
 	}
 
 	public EncoderMode nextMode() {
@@ -165,7 +166,6 @@ public class SequencEncoderHandler extends Layer {
 			final String parameterName) {
 		encoder.bindEncoder(layer, inc -> handleParam(index, inc));
 		encoder.bindTouched(layer, touched -> handleTouchParam(index, touched, parameterName));
-		padHandler.bindPadParameters(layer);
 	}
 
 	private void handleTouchParam(final int index, final Boolean touched, final String parameterName) {
@@ -203,6 +203,7 @@ public class SequencEncoderHandler extends Layer {
 
 
 	private void switchMode(final EncoderMode newMode) {
+		padHandler.deactivateView();
 		encoderMode = newMode;
 		currentLayer.deactivate();
 		currentLayer = modeMapping.get(encoderMode);
@@ -402,6 +403,7 @@ public class SequencEncoderHandler extends Layer {
 
 	@Override
 	protected void onDeactivate() {
+		padHandler.deactivateView();
 		currentLayer.deactivate();
 	}
 
