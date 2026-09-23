@@ -54,7 +54,8 @@ final class MulticlipTarget {
         group.isPinned().markInterested();
         editor.position().markInterested();
         editor.isPinned().markInterested();
-        children = group.createTrackBank(LANES, 0, 16, false);
+        // Exclude group master and effect tracks from the positional drum lanes.
+        children = group.createMainTrackBank(LANES, 0, 16, false);
         children.scrollPosition().markInterested();
         children.scrollPosition().set(0);
         for (int i = 0; i < LANES; i++) {

@@ -130,7 +130,18 @@ length aligned to that fine grid; other loops show a notification.
 
 Bank left/right without held steps or Alt still rotates the visible page by
 one grid step. Notes on other pages remain intact. Shift + Bank retains
-Undo/Redo, once per press/release. Releasing a nudged step does not toggle it off.
+Undo/Redo, once per press. Nudges execute on arrow press, so releasing the step
+and arrow in either order preserves the note. A short step tap still toggles it;
+a hold of 250 ms or longer preserves it even without an edit. Repeated nudges
+keep following held notes across grid cells and the loop boundary.
+
+The OLED shows the signed cumulative movement during the current hold, e.g.
+`-3/64 beat` for earlier or `+2/64 beat` for later, for both held steps and
+Alt + arrows across the selected drum's loop. This is relative to the beginning
+of the gesture, not an absolute grid offset. Changing the held selection,
+releasing/pressing Alt, or changing clip/pitch resets the measurement. If a
+collision prevents only some notes from moving, the display shows their offset
+range. Unavailable cursors and zero-move operations show feedback too.
 
 Run all regression checks and produce `target/FireNudger.bwextension` with
 `./scripts/check-sequencer.sh` (Java 17 and cached Maven dependencies required).
@@ -156,3 +167,5 @@ Group acquisition, target selection and cursor readiness are recorded in
 
 Verified against the running project after installation: the extension found
 Group 1's Kick Midi child, selected S2 in Scene 2, and reported both cursors ready.
+
+Group child banks exclude the group master, keeping child lane and drum-pad mappings aligned.

@@ -26,6 +26,7 @@ public class DrumSequenceMode extends Layer {
     private Application app;
 
     private final IntSetValue heldSteps = new IntSetValue();
+    private final StepHoldGesture stepHoldGesture = new StepHoldGesture();
     private final Set<Integer> addedSteps = new HashSet<>();
     private final Set<Integer> modifiedSteps = new HashSet<>();
     private final HashMap<Integer, NoteSnapshot> expectedNoteChanges = new HashMap<>();
@@ -118,7 +119,7 @@ public class DrumSequenceMode extends Layer {
                 ? host.createCursorTrack("FIRE_CHILD_CLIP", "Fire child clip", 0, 16, false)
                 : cursorTrack;
         cursorClip = editTrack.createLauncherCursorClip("SQClip", "SQClip", 32, 1);
-        fineNudge = new FineNudge(host, editTrack, cursorClip);
+        fineNudge = new FineNudge(host, editTrack, cursorClip, driver.getDiagnosticLog()::log);
         multiclip = childClips ? new MulticlipTarget(host, cursorTrack, editTrack, cursorClip,
                 fineNudge.clip(), this::clearClipContext, this::positionReady, () -> prepareMulticlipPads(driver),
                 this::syncMulticlipLane, message -> oled.paramInfo("Multiclip", message),
@@ -224,6 +225,8 @@ public class DrumSequenceMode extends Layer {
         if (recurrenceEditor != null) recurrenceEditor.cancel();
         Arrays.fill(assignments, null);
         heldSteps.stream().toList().forEach(heldSteps::remove);
+        stepHoldGesture.clear();
+        fineNudge.resetSelection();
         addedSteps.clear();
         modifiedSteps.clear();
         expectedNoteChanges.clear();
@@ -313,6 +316,7 @@ public class DrumSequenceMode extends Layer {
 
         final BiColorButton altButton = driver.getButton(NoteAssign.ALT);
         altButton.bind(mainLayer, altActive, BiColorLightState.GREEN_HALF, BiColorLightState.OFF);
+        altActive.addValueObserver(active -> fineNudge.resetSelection());
 
         final BiColorButton quantizeButton = driver.getButton(NoteAssign.NOTE);
         quantizeButton.bindPressed(mainLayer, this::toggleRecordQuantization, this::getQuantizationLightState);
@@ -337,10 +341,11 @@ public class DrumSequenceMode extends Layer {
 
         final BiColorButton shiftLeftButton = driver.getButton(NoteAssign.BANK_L);
         shiftLeftButton.bindPressed(mainLayer, p -> {
+            if (!p) return;
             if (shiftActive.get()) {
                 // If shift is held, perform the undo action.
                 resetEuclideanPattern();
-                if (!p) getApplication().undo();
+                getApplication().undo();
             } else {
                 // Otherwise, perform the move pattern action.
                 movePattern(p, -1);
@@ -349,10 +354,11 @@ public class DrumSequenceMode extends Layer {
 
         final BiColorButton shiftRightButton = driver.getButton(NoteAssign.BANK_R);
         shiftRightButton.bindPressed(mainLayer, p -> {
+            if (!p) return;
             if (shiftActive.get()) {
                 // If shift is held, perform the redo action.
                 resetEuclideanPattern();
-                if (!p) getApplication().redo();
+                getApplication().redo();
             } else {
                 // Otherwise, perform the move pattern action.
                 movePattern(p, 1);
@@ -384,15 +390,17 @@ public class DrumSequenceMode extends Layer {
             }
             return;
         }
+        fineNudge.resetSelection();
         refreshStep(index);
         final NoteStep note = assignments[index];
         if (!pressed && heldSteps.stream().noneMatch(step -> step == index)) return;
         if (!pressed) {
+            boolean wasTap = stepHoldGesture.releaseIsTap(index);
             heldSteps.remove(index);
             if (copyHeld.get() || fixedLengthHeld.get()) {
                 // do nothing
             } else if (note != null && note.state() == State.NoteOn && !addedSteps.contains(index)) {
-                if (!modifiedSteps.contains(index)) {
+                if (wasTap && !modifiedSteps.contains(index)) {
                     registerManualEuclideanStep(index, false);
                     cursorClip.clearStep(note.channel(), index, 0);
                 } else {
@@ -403,6 +411,7 @@ public class DrumSequenceMode extends Layer {
             modifiedSteps.remove(index);
         } else {
             heldSteps.add(index);
+            stepHoldGesture.press(index);
             if (fixedLengthHeld.get()) {
                 stepActionFixedLength(index);
             } else if (copyHeld.get()) {
@@ -479,14 +488,21 @@ public class DrumSequenceMode extends Layer {
     }
 
     private void movePattern(final boolean pressed, final int dir) {
-        if (pressed || !clipReady()) return;
+        if (!pressed || !clipReady()) return;
         final Set<Integer> held = heldSteps.stream().collect(Collectors.toSet());
         if (!held.isEmpty() || isAltHeld()) {
             resetEuclideanPattern();
             modifiedSteps.addAll(held);
-            fineNudge.move(dir, fineStep -> held.isEmpty() || held.contains(
+            int moved = fineNudge.move(dir, !held.isEmpty(), fineStep -> held.isEmpty() || held.contains(
                     (int) Math.floor((cursorClip.getLoopStart().get() + fineStep * FineNudge.STEP_BEATS)
                             / getGridResolution() + 1e-8) - positionHandler.getStepOffset()));
+            if (moved >= 0) {
+                oled.paramInfo(held.isEmpty() ? "Nudge loop" : "Nudge held", fineNudge.offsetText(),
+                        moved > 0 ? "This hold | " + moved + " notes moved" : "No movable notes");
+            } else {
+                oled.paramInfo("Fine nudge", "Clip not ready / unsupported");
+            }
+            oled.clearScreenDelayed();
         } else {
             movePatternWhole(dir);
         }

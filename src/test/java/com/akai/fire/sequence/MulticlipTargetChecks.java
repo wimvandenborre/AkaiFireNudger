@@ -33,7 +33,7 @@ public final class MulticlipTargetChecks {
             if (result == int.class) return 0;
             if (result == double.class) return 0.0;
             if (result == String.class) return "";
-            if (op.equals("getItemAt")) result = name.endsWith("createTrackBank") ? Track.class : ClipLauncherSlot.class;
+            if (op.equals("getItemAt")) result = name.endsWith("createMainTrackBank") ? Track.class : ClipLauncherSlot.class;
             if (result.isInterface()) return node(op + (op.equals("getItemAt") ? args[0] : "")).proxy(result);
             return null;
         }
@@ -57,7 +57,7 @@ public final class MulticlipTargetChecks {
         group.node("position").value = 10;
         group.node("isPinned").value = false;
         for (int lane = 0; lane < 16; lane++) {
-            Api child = group.node("createTrackBank").node("getItemAt" + lane);
+            Api child = group.node("createMainTrackBank").node("getItemAt" + lane);
             child.node("exists").value = lane < 2;
             child.node("canHoldNoteData").value = true;
             child.node("position").value = 11 + lane;
@@ -101,7 +101,7 @@ public final class MulticlipTargetChecks {
         drain();
         check(calls.stream().filter(c -> c.equals("coarse.clearSteps")).count() == 1, "target clip cleared once");
         // A new clip must exist before the deferred first note can be inserted.
-        Api empty = group.node("createTrackBank").node("getItemAt0")
+        Api empty = group.node("createMainTrackBank").node("getItemAt0")
                 .node("clipLauncherSlotBank").node("getItemAt3");
         empty.node("hasContent").value = false;
         setClip(clip, 11, 3, false);
@@ -128,7 +128,7 @@ public final class MulticlipTargetChecks {
         drain();
         check(Boolean.FALSE.equals(group.node("isPinned").value), "restore initial pin");
         check(!target.ready() && cleared[0] >= 4, "deactivate invalidates cached edits");
-        Api selected = group.node("createTrackBank").node("getItemAt1")
+        Api selected = group.node("createMainTrackBank").node("getItemAt1")
                 .node("clipLauncherSlotBank").node("getItemAt1");
         selected.node("isSelected").publish(true);
         editor.node("position").value = 12;
@@ -138,7 +138,7 @@ public final class MulticlipTargetChecks {
         drain();
         check(target.ready() && target.midiNote() == 37, "startup follows selected child scene 2");
         selected.node("isSelected").publish(false);
-        Api next = group.node("createTrackBank").node("getItemAt0")
+        Api next = group.node("createMainTrackBank").node("getItemAt0")
                 .node("clipLauncherSlotBank").node("getItemAt4");
         next.node("isSelected").publish(true);
         tick();
