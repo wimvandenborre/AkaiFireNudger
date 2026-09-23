@@ -139,16 +139,36 @@ public class PadHandler {
                 parent.clearNoteRow();
             } else {
                 parent.registerPendingAction(new NoteAction(selectedPadIndex, pad.index, Type.CLEAR));
-                pad.pad.selectInEditor();
+                selectPad(pad);
             }
         } else {
             parent.clearPendingAction();
             // Normal pad selection (only if Select is not held)
-            pad.pad.selectInEditor();
+            selectPad(pad);
             padsHeld.add(pad.index);
         }
     }
 
+
+    private void selectPad(PadContainer pad) {
+        if (parent.getMulticlip() != null) {
+            executePadSelection(pad);
+            pad.activateRemoteControls();
+        } else {
+            pad.pad.selectInEditor();
+        }
+    }
+
+    void syncMulticlipLane(int note) {
+        int index = note - drumScrollOffset;
+        if (index < 0 || index >= pads.size()) return;
+        selectedPad = pads.get(index);
+        selectedPadIndex = index;
+        currentPadColor = selectedPad.getBitwigPadColor();
+        displayTarget.setFocusIndex(index);
+        displayTarget.setName(selectedPad.getName());
+        selectedPad.activateRemoteControls();
+    }
 
     private Color getPadColor(DrumPad pad) {
         Color[] colors = {
@@ -189,7 +209,7 @@ public class PadHandler {
     void executeClear(final int origIndex) {
         parent.clearNoteRow();
         if (origIndex != -1) {
-            pads.get(origIndex).pad.selectInEditor();
+            selectPad(pads.get(origIndex));
         }
     }
 
@@ -204,7 +224,7 @@ public class PadHandler {
             final List<NoteStep> notes = parent.getOnNotes();
             parent.registerPendingAction(new NoteAction(selectedPadIndex, pad.index, Type.COPY_PAD, notes));
             if (parent.getMulticlip() == null) cursorClip.scrollToKey(drumScrollOffset + pad.index);
-            pad.pad.selectInEditor();
+            selectPad(pad);
         }
     }
 
@@ -301,7 +321,8 @@ public class PadHandler {
         noteInput.setKeyTranslationTable(notesToDrumTable);
         drumPadBank.scrollPosition().addValueObserver(offset -> {
             drumScrollOffset = offset;
-            focusOnSelectedPad();
+            if (parent.getMulticlip() == null) focusOnSelectedPad();
+            else syncMulticlipLane(parent.getMulticlip().midiNote());
             applyScale();
         });
         for (int i = 0; i < 16; i++) {

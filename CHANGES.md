@@ -143,3 +143,16 @@ try held-step and Alt lane nudges on notes 36 and 37, and switch lanes while
 holding a step. Verify group macros/mute/solo, Euclidean controls, groove, and
 the default single-track mode in Bitwig. Automated checks simulate cursor
 settling and note operations; they do not replace this live controller check.
+
+### Group clip selection follow-up
+
+Group mode now finds a selected child clip at startup, falling back to a playing
+clip and then the first populated child slot. It no longer always opens empty
+Scene 1. Clicking a different child clip in Bitwig updates the Fire's lane and
+scene, including when the second row is configured as Mute-Row. Fire lane
+selection is independent of which drum pad Bitwig's device editor has selected.
+Group acquisition, target selection and cursor readiness are recorded in
+`FireNudger.log` for runtime troubleshooting.
+
+Verified against the running project after installation: the extension found
+Group 1's Kick Midi child, selected S2 in Scene 2, and reported both cursors ready.

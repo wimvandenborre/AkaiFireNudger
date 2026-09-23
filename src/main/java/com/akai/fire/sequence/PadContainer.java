@@ -164,7 +164,7 @@ class PadContainer {
             return;
         }
 
-        if (this.selected) {
+        if (this.selected && padHandler.parent.getMulticlip() == null) {
             padHandler.executePadSelection(this);
             padHandler.parent.setActiveRemoteControlsPage(remoteControls);
         }
@@ -203,10 +203,14 @@ class PadContainer {
 //        if (!exists) {
 //            return RgbLigthState.OFF;
 //        }
-        if (selected) {
+        if (padHandler.parent.getMulticlip() != null ? padHandler.selectedPad == this : selected) {
             return playing.returnTrueFalse(padColor.getBrightest(), padColor.getBrightend());
         }
         return playing.returnTrueFalse(padColor, padColor.getDimmed());
+    }
+
+    void activateRemoteControls() {
+        padHandler.parent.setActiveRemoteControlsPage(remoteControls);
     }
 
     public void select() {

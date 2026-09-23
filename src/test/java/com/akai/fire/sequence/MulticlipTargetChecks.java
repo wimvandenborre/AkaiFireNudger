@@ -13,6 +13,8 @@ public final class MulticlipTargetChecks {
         final String name;
         final Map<String, Api> children = new HashMap<>();
         Object value;
+        final List<com.bitwig.extension.callback.BooleanValueChangedCallback> observers = new ArrayList<>();
+        void publish(boolean next) { value = next; observers.forEach(observer -> observer.valueChanged(next)); }
         Api(String name) { this.name = name; }
         Api node(String key) { return children.computeIfAbsent(key, k -> new Api(name + "." + k)); }
         <T> T proxy(Class<T> type) {
@@ -21,6 +23,7 @@ public final class MulticlipTargetChecks {
         public Object invoke(Object proxy, Method method, Object[] args) {
             String op = method.getName();
             if (op.equals("scheduleTask")) { tasks.add((Runnable) args[0]); return null; }
+            if (op.equals("addValueObserver") && args[0] instanceof com.bitwig.extension.callback.BooleanValueChangedCallback observer) { observers.add(observer); return null; }
             if (op.equals("set")) { value = args[0]; return null; }
             if (op.equals("get") && value != null) return value;
             if (op.equals("toString")) return name;
@@ -68,7 +71,7 @@ public final class MulticlipTargetChecks {
         MulticlipTarget target = new MulticlipTarget(host.proxy(ControllerHost.class),
                 group.proxy(CursorTrack.class), editor.proxy(CursorTrack.class),
                 clip.proxy(PinnableCursorClip.class), fine.proxy(PinnableCursorClip.class),
-                () -> cleared[0]++, () -> ready[0]++, () -> {}, text -> {});
+                () -> cleared[0]++, () -> ready[0]++, () -> {}, note -> {}, text -> {}, text -> {});
         target.selectNote(36);
         target.acquireGroup();
         tick(); tick();
@@ -125,6 +128,34 @@ public final class MulticlipTargetChecks {
         drain();
         check(Boolean.FALSE.equals(group.node("isPinned").value), "restore initial pin");
         check(!target.ready() && cleared[0] >= 4, "deactivate invalidates cached edits");
+        Api selected = group.node("createTrackBank").node("getItemAt1")
+                .node("clipLauncherSlotBank").node("getItemAt1");
+        selected.node("isSelected").publish(true);
+        editor.node("position").value = 12;
+        setClip(clip, 12, 1, true);
+        setClip(fine, 12, 1, true);
+        target.acquireGroup();
+        drain();
+        check(target.ready() && target.midiNote() == 37, "startup follows selected child scene 2");
+        selected.node("isSelected").publish(false);
+        Api next = group.node("createTrackBank").node("getItemAt0")
+                .node("clipLauncherSlotBank").node("getItemAt4");
+        next.node("isSelected").publish(true);
+        tick();
+        check(!target.ready(), "external selection invalidates old cursor");
+        editor.node("position").value = 11;
+        setClip(clip, 11, 4, true);
+        setClip(fine, 11, 4, true);
+        drain();
+        check(target.ready() && target.midiNote() == 36, "external clip selection changes lane and scene");
+        next.node("isSelected").publish(false);
+        selected.node("isPlaying").value = true;
+        target.acquireGroup();
+        editor.node("position").value = 12;
+        setClip(clip, 12, 1, true);
+        setClip(fine, 12, 1, true);
+        drain();
+        check(target.ready() && target.midiNote() == 37, "startup follows playing child when none selected");
         System.out.println("Multiclip checks passed: mapping, independent cursors, stale edit cancellation, scene clear, missing lanes, pin restore.");
     }
 }

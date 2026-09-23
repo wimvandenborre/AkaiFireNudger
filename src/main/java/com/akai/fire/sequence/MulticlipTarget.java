@@ -2,6 +2,7 @@ package com.akai.fire.sequence;
 
 import com.bitwig.extension.controller.api.*;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 
 /** Oikontrol-style direct-child lanes; the rack cursor stays on the parent group. */
 final class MulticlipTarget {
@@ -17,6 +18,9 @@ final class MulticlipTarget {
     private final Runnable onReady;
     private final Runnable onGroup;
     private final Consumer<String> feedback;
+    private final Consumer<String> diagnostic;
+    private final IntConsumer onLane;
+    private long selectionGeneration;
     private long generation;
     private boolean active;
     private boolean groupReady;
@@ -31,7 +35,8 @@ final class MulticlipTarget {
 
     MulticlipTarget(ControllerHost host, CursorTrack group, CursorTrack editor,
                    PinnableCursorClip clip, PinnableCursorClip fine, Runnable invalidate,
-                   Runnable onReady, Runnable onGroup, Consumer<String> feedback) {
+                   Runnable onReady, Runnable onGroup, IntConsumer onLane,
+                   Consumer<String> feedback, Consumer<String> diagnostic) {
         this.host = host;
         this.group = group;
         this.editor = editor;
@@ -41,6 +46,8 @@ final class MulticlipTarget {
         this.onReady = onReady;
         this.onGroup = onGroup;
         this.feedback = feedback;
+        this.diagnostic = diagnostic;
+        this.onLane = onLane;
         group.exists().markInterested();
         group.isGroup().markInterested();
         group.position().markInterested();
@@ -62,6 +69,11 @@ final class MulticlipTarget {
                 slot.hasContent().markInterested();
                 slot.sceneIndex().markInterested();
                 slot.color().markInterested();
+                slot.isSelected().markInterested();
+                slot.isPlaying().markInterested();
+                final int childIndex = i;
+                final int sceneIndex = j;
+                slot.isSelected().addValueObserver(selected -> observeSelection(childIndex, sceneIndex, selected));
             }
         }
         for (PinnableCursorClip view : new PinnableCursorClip[]{clip, fine}) {
@@ -82,6 +94,7 @@ final class MulticlipTarget {
         groupReady = false;
         cancel();
         group.isPinned().set(false);
+        diagnostic.accept("MULTICLIP_ACQUIRE group=" + group.position().get());
         long ticket = generation;
         host.scheduleTask(() -> seekGroup(ticket, 0), 50);
     }
@@ -99,7 +112,8 @@ final class MulticlipTarget {
                 }
                 groupPosition = group.position().get();
                 groupReady = true;
-                if (lane < 0) lane = 0;
+                chooseInitialClip();
+                diagnostic.accept("MULTICLIP_GROUP position=" + groupPosition + " lane=" + lane + " scene=" + scene);
                 onGroup.run();
                 retarget(null);
             }, 100);
@@ -109,6 +123,43 @@ final class MulticlipTarget {
         } else {
             fail("Select group, press STOP");
         }
+    }
+
+    private void chooseInitialClip() {
+        // Prefer the user's selected content, then a playing clip, then existing content.
+        // Do not force the first (often empty) scene in Mute-Row mode.
+        for (int priority = 0; priority < 3; priority++) {
+            for (int child = 0; child < LANES; child++) {
+                if (!eligible(child)) continue;
+                for (int index = 0; index < 16; index++) {
+                    ClipLauncherSlot candidate = slot(child, index);
+                    if (candidate.hasContent().get() && (priority == 2
+                            || (priority == 0 && candidate.isSelected().get())
+                            || (priority == 1 && candidate.isPlaying().get()))) {
+                        lane = child;
+                        scene = index;
+                        return;
+                    }
+                }
+            }
+        }
+        for (int child = 0; child < LANES; child++) {
+            if (eligible(child)) { lane = child; scene = 0; return; }
+        }
+        lane = -1;
+    }
+
+    private void observeSelection(int child, int index, boolean selected) {
+        if (!active || !selected || !eligible(child) || (child == lane && index == scene)) return;
+        long ticket = ++selectionGeneration;
+        host.scheduleTask(() -> {
+            if (ticket != selectionGeneration || !active || !eligible(child)
+                    || !slot(child, index).isSelected().get()) return;
+            lane = child;
+            scene = index;
+            diagnostic.accept("MULTICLIP_SELECTED lane=" + lane + " scene=" + scene);
+            retarget(null);
+        }, 50);
     }
 
     void deactivate() {
@@ -147,6 +198,7 @@ final class MulticlipTarget {
 
     private void cancel() {
         generation++;
+        selectionGeneration++;
         ready = false;
         targeting = false;
         pending = null;
@@ -166,6 +218,11 @@ final class MulticlipTarget {
             return;
         }
         targeting = true;
+        diagnostic.accept("MULTICLIP_TARGET lane=" + lane + " scene=" + scene
+                + " child=" + children.getItemAt(lane).name().get()
+                + " position=" + children.getItemAt(lane).position().get()
+                + " content=" + slot(lane, scene).hasContent().get());
+        onLane.accept(FIRST_NOTE + lane);
         editor.isPinned().set(false);
         clip.isPinned().set(false);
         fine.isPinned().set(false);
@@ -192,7 +249,15 @@ final class MulticlipTarget {
             if (!eligible(lane)) { fail("Child track unavailable"); return; }
             if (!matches()) {
                 if (attempt < 20) awaitTarget(ticket, attempt + 1);
-                else fail("Clip unavailable; select again");
+                else {
+                    diagnostic.accept("MULTICLIP_TIMEOUT editor=" + editor.position().get()
+                            + " coarseTrack=" + clip.getTrack().position().get()
+                            + " fineTrack=" + fine.getTrack().position().get()
+                            + " coarseScene=" + clip.clipLauncherSlot().sceneIndex().get()
+                            + " fineScene=" + fine.clipLauncherSlot().sceneIndex().get()
+                            + " coarseExists=" + clip.exists().get() + " fineExists=" + fine.exists().get());
+                    fail("Clip unavailable; select again");
+                }
                 return;
             }
             clip.scrollToKey(FIRST_NOTE + lane);
@@ -208,6 +273,7 @@ final class MulticlipTarget {
                 Runnable action = pending;
                 pending = null;
                 if (action != null) action.run();
+                diagnostic.accept("MULTICLIP_READY lane=" + lane + " scene=" + scene + " exists=" + clip.exists().get());
                 feedback.accept(children.getItemAt(lane).name().get() + " / " + (scene + 1));
             }, 50);
         }, 50);
@@ -215,6 +281,7 @@ final class MulticlipTarget {
 
     private void fail(String message) {
         cancel();
+        diagnostic.accept("MULTICLIP_ERROR " + message);
         feedback.accept(message);
     }
 

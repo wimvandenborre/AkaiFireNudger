@@ -113,13 +113,16 @@ public class DrumSequenceMode extends Layer {
                 new String[]{"Selected track", "Group child tracks"}, "Selected track");
         clipSource.markInterested();
         final boolean childClips = clipSource.get().equals("Group child tracks");
+        driver.getDiagnosticLog().log("CLIP_SOURCE mode=" + clipSource.get() + " childClips=" + childClips);
         editTrack = childClips
                 ? host.createCursorTrack("FIRE_CHILD_CLIP", "Fire child clip", 0, 16, false)
                 : cursorTrack;
         cursorClip = editTrack.createLauncherCursorClip("SQClip", "SQClip", 32, 1);
         fineNudge = new FineNudge(host, editTrack, cursorClip);
         multiclip = childClips ? new MulticlipTarget(host, cursorTrack, editTrack, cursorClip,
-                fineNudge.clip(), this::clearClipContext, this::positionReady, () -> prepareMulticlipPads(driver), message -> oled.paramInfo("Multiclip", message)) : null;
+                fineNudge.clip(), this::clearClipContext, this::positionReady, () -> prepareMulticlipPads(driver),
+                this::syncMulticlipLane, message -> oled.paramInfo("Multiclip", message),
+                driver.getDiagnosticLog()::log) : null;
 
         cursorClip.addNoteStepObserver(this::handleNoteStep);
         cursorClip.playingStep().addValueObserver(this::handlePlayingStep);
@@ -187,9 +190,12 @@ public class DrumSequenceMode extends Layer {
     }
 
 
+    private void syncMulticlipLane(int note) {
+        padHandler.syncMulticlipLane(note);
+    }
+
     private void prepareMulticlipPads(AkaiFireDrumSeqExtension driver) {
         driver.getViewControl().getDrumPadBank().scrollPosition().set(36);
-        driver.getViewControl().getDrumPadBank().getItemAt(0).selectInEditor();
     }
 
     private void positionReady() {
