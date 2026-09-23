@@ -8,6 +8,8 @@ import java.util.*;
 public final class FineNudgeControllerChecks {
     static final class ClipApi extends MulticlipTargetChecks.Api {
         final Set<String> notes = new HashSet<>();
+        final Set<String> hidden = new HashSet<>();
+        final Set<String> edited = new HashSet<>();
         int pitch;
         ClipApi() { super("fine"); }
         String key(int channel, int step) { return channel + ":" + step; }
@@ -18,10 +20,15 @@ public final class FineNudgeControllerChecks {
                     int channel = (int) args[0], step = (int) args[1];
                     return Proxy.newProxyInstance(NoteStep.class.getClassLoader(), new Class<?>[]{NoteStep.class},
                             (p, op, values) -> {
-                                if (op.getName().equals("state")) return notes.contains(key(channel, step))
+                                if (op.getName().equals("state")) return notes.contains(key(channel, step)) && !hidden.contains(key(channel, step))
                                         ? NoteStep.State.NoteOn : NoteStep.State.Empty;
+                                if (op.getName().equals("x")) return step;
+                                if (op.getName().equals("channel")) return channel;
+                                if (op.getName().equals("setVelocity")) { edited.add(key(channel, step)); return null; }
                                 throw new AssertionError(op);
                             });
+                case "setStep": notes.add(key((int) args[0], (int) args[1])); return null;
+                case "clearStep": notes.remove(key((int) args[0], (int) args[1])); return null;
                 case "moveStep":
                     int ch = (int) args[0], from = (int) args[1], delta = (int) args[3];
                     check((int) args[2] == 0, "selected pitch uses relative row zero");
@@ -49,31 +56,31 @@ public final class FineNudgeControllerChecks {
         MulticlipTargetChecks.drain();
         fine.notes.add("2:0");
         fine.notes.add("5:16");
-        check(nudge.move(-1, true, x -> x == 0) == 1, "held note moves on its original MIDI channel");
+        check(nudge.move(-1, true, x -> x == 0, 0.25) == 1, "held note moves on its original MIDI channel");
         check(fine.pitch == 38 && fine.notes.contains("2:63") && fine.notes.contains("5:16"), "pitch and loop wrap");
         MulticlipTargetChecks.drain();
-        check(nudge.move(-1, true, x -> x == 0) == 1 && fine.notes.contains("2:62"),
+        check(nudge.move(-1, true, x -> x == 0, 0.25) == 1 && fine.notes.contains("2:62"),
                 "held note stays selected after crossing a grid cell and loop boundary");
         check(nudge.offsetText().equals("-2/64 beat"), "held cumulative offset across loop seam");
         MulticlipTargetChecks.drain();
         nudge.resetSelection();
-        check(nudge.move(1, false, x -> true) == 2, "whole lane across MIDI channels");
+        check(nudge.move(1, false, x -> true, 0.25) == 2, "whole lane across MIDI channels");
         MulticlipTargetChecks.drain();
         check(nudge.offsetText().equals("+1/64 beat"), "new whole-loop hold resets offset");
-        check(nudge.move(-1, false, x -> true) == 2 && nudge.offsetText().equals("0/64 beat"),
+        check(nudge.move(-1, false, x -> true, 0.25) == 2 && nudge.offsetText().equals("0/64 beat"),
                 "opposite nudge returns gesture offset to zero");
         MulticlipTargetChecks.drain();
         fine.notes.clear();
         fine.notes.add("2:0");
         fine.notes.add("2:1");
-        fine.notes.add("2:8");
+        fine.notes.add("2:16");
         nudge.resetSelection();
-        check(nudge.move(1, true, x -> x != 1) == 1 && nudge.offsetText().equals("0..+1/64 beat"),
+        check(nudge.move(1, true, x -> x != 1, 0.25) == 1 && nudge.offsetText().equals("0..+1/64 beat"),
                 "partially blocked selection displays actual offset range");
         MulticlipTargetChecks.drain();
         fine.node("getTrack").node("position").value = 3;
         Set<String> before = Set.copyOf(fine.notes);
-        check(nudge.move(1, false, x -> true) == -1 && fine.notes.equals(before), "mismatched clip blocked safely");
+        check(nudge.move(1, false, x -> true, 0.25) == -1 && fine.notes.equals(before), "mismatched clip blocked safely");
         System.out.println("Fine cursor checks passed: actual moves, pitch/channel isolation, held-note tracking, loop wrap, display offsets and stale-target guard.");
     }
     static void check(boolean ok, String message) { if (!ok) throw new AssertionError(message); }

@@ -201,7 +201,7 @@ public class PadHandler {
         parent.clearNoteRow();
         for (final NoteSnapshot noteStep : notes) {
             if (copyParams) parent.registerExpectedNoteChange(noteStep.x(), noteStep);
-            cursorClip.setStep(parent.noteChannel(), noteStep.x(), 0,
+            parent.setLogicalStep(parent.noteChannel(), noteStep.x(),
                     (int) Math.round(noteStep.velocity() * 127), noteStep.duration());
         }
     }

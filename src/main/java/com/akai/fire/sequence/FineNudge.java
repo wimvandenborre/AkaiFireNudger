@@ -15,6 +15,13 @@ final class FineNudge {
     private final PinnableCursorClip fine;
     private int pitch = -1;
     private boolean settled;
+    private boolean positioned;
+    private boolean notesDirty = true;
+    private List<NoteStep> observedNotes = List.of();
+    private List<NoteStep> mappedNotes = List.of();
+    private double mappedResolution = -1;
+    private int mappedPage = -1;
+    private boolean limited;
     private long generation;
     private Map<Integer, Set<Integer>> heldTargets;
 
@@ -45,7 +52,8 @@ final class FineNudge {
         fine.clipLauncherSlot().sceneIndex().markInterested();
         fine.getLoopStart().markInterested();
         fine.getLoopLength().markInterested();
-        fine.addNoteStepObserver(note -> {});
+        fine.addNoteStepObserver(note -> notesDirty = true);
+        coarse.getLoopLength().addValueObserver(value -> refresh());
         coarse.getLoopStart().addValueObserver(value -> refresh());
         coarse.clipLauncherSlot().sceneIndex().addValueObserver(value -> refresh());
         coarse.getTrack().position().addValueObserver(value -> refresh());
@@ -61,31 +69,114 @@ final class FineNudge {
     private void refresh() {
         resetSelection();
         settled = false;
+        positioned = false;
+        notesDirty = true;
         long ticket = ++generation;
         if (pitch < 0 || pitch > 127) return;
         fine.scrollToKey(pitch);
         fine.scrollToStep((int) Math.round(coarse.getLoopStart().get() / STEP_BEATS));
-        host.scheduleTask(() -> { if (ticket == generation) settled = true; }, 100);
+        host.scheduleTask(() -> { if (ticket == generation) { settled = true; positioned = true; } }, 100);
     }
 
-    int move(int direction, boolean heldOnly, IntPredicate include) {
-        if (!settled || !coarse.exists().get() || !fine.exists().get()
-                || coarse.getTrack().position().get() != fine.getTrack().position().get()
-                || coarse.clipLauncherSlot().sceneIndex().get() != fine.clipLauncherSlot().sceneIndex().get()
-                || Math.abs(coarse.getLoopLength().get() - fine.getLoopLength().get()) > 1e-8
-                || Math.abs(coarse.getLoopStart().get() - fine.getLoopStart().get()) > 1e-8) {
-            diagnostic.accept("NUDGE_NOT_READY settled=" + settled + " pitch=" + pitch
-                    + " coarseExists=" + coarse.exists().get() + " fineExists=" + fine.exists().get());
-            return -1;
-        }
+    private boolean sameClip() {
+        return positioned && coarse.exists().get() && fine.exists().get()
+                && coarse.getTrack().position().get() == fine.getTrack().position().get()
+                && coarse.clipLauncherSlot().sceneIndex().get() == fine.clipLauncherSlot().sceneIndex().get()
+                && Math.abs(coarse.getLoopLength().get() - fine.getLoopLength().get()) < 1e-8
+                && Math.abs(coarse.getLoopStart().get() - fine.getLoopStart().get()) < 1e-8;
+    }
+
+    boolean mapsGrid(double resolution) {
+        double grid = resolution / STEP_BEATS;
         double length = coarse.getLoopLength().get() / STEP_BEATS;
-        double start = coarse.getLoopStart().get() / STEP_BEATS;
-        if (length > WINDOW || length < 1 || Math.abs(length - Math.rint(length)) > 1e-6
-                || Math.abs(start - Math.rint(start)) > 1e-6) {
-            host.showPopupNotification("Fine nudge needs an aligned loop of at most 64 beats");
+        return sameClip() && grid >= 1 && aligned(grid) && length >= grid && length <= WINDOW
+                && aligned(length / grid) && aligned(coarse.getLoopStart().get() / resolution);
+    }
+
+    private static boolean aligned(double value) { return Math.abs(value - Math.rint(value)) < 1e-6; }
+
+    static int nearestSlot(int fineStep, int grid, int loopSteps) {
+        return Math.floorMod((int) Math.floor((double) fineStep / grid + 0.5), loopSteps / grid);
+    }
+
+    static boolean withinLimit(int fineStep, int direction, int grid) {
+        int anchor = (int) Math.floor((double) fineStep / grid + 0.5) * grid;
+        int offset = fineStep - anchor;
+        int next = offset + Integer.signum(direction);
+        // Existing notes outside the limit may return toward their anchor, never farther away.
+        return Math.abs(next) <= Math.floor(grid * 0.4) || Math.abs(next) < Math.abs(offset);
+    }
+
+    int logicalStep(int fineStep, double resolution, int pageOffset) {
+        int grid = (int) Math.round(resolution / STEP_BEATS);
+        int length = (int) Math.round(coarse.getLoopLength().get() / STEP_BEATS);
+        return nearestSlot(fineStep, grid, length)
+                + (int) Math.round(coarse.getLoopStart().get() / resolution) - pageOffset;
+    }
+
+    /** Null means unsupported/unsettled; an empty list means an actually empty page. */
+    List<NoteStep> pageNotes(double resolution, int pageOffset) {
+        if (!mapsGrid(resolution)) return null;
+        boolean rebuild = notesDirty || mappedResolution != resolution || mappedPage != pageOffset;
+        if (notesDirty) {
+            List<NoteStep> notes = new ArrayList<>();
+            int length = (int) Math.round(coarse.getLoopLength().get() / STEP_BEATS);
+            for (int channel = 0; channel < 16; channel++) for (int x = 0; x < length; x++) {
+                NoteStep note = fine.getStep(channel, x, 0);
+                if (note.state() == NoteStep.State.NoteOn) notes.add(note);
+            }
+            observedNotes = notes;
+            notesDirty = false;
+        }
+        if (rebuild) {
+            List<NoteStep> notes = new ArrayList<>();
+            for (NoteStep note : observedNotes) {
+                int slot = logicalStep(note.x(), resolution, pageOffset);
+                if (slot >= 0 && slot < 32) notes.add(new LogicalNoteStep(note, slot));
+            }
+            mappedNotes = notes;
+            mappedResolution = resolution;
+            mappedPage = pageOffset;
+        }
+        return mappedNotes;
+    }
+
+    private int anchorStep(int slot, double resolution, int pageOffset) {
+        return (int) Math.round(((pageOffset + slot) * resolution - coarse.getLoopStart().get()) / STEP_BEATS);
+    }
+
+    void setStep(int channel, int slot, int velocity, double duration, double resolution, int pageOffset) {
+        if (!mapsGrid(resolution)) { coarse.setStep(channel, slot, 0, velocity, duration); return; }
+        clearStep(channel, slot, resolution, pageOffset);
+        fine.setStep(channel, anchorStep(slot, resolution, pageOffset), 0, velocity, duration);
+        notesDirty = true;
+    }
+
+    void clearStep(int channel, int slot, double resolution, int pageOffset) {
+        List<NoteStep> notes = pageNotes(resolution, pageOffset);
+        if (notes == null) { coarse.clearStep(channel, slot, 0); return; }
+        for (NoteStep note : notes) if (note.channel() == channel && note.x() == slot) {
+            fine.clearStep(channel, ((LogicalNoteStep) note).source.x(), 0);
+        }
+        // Clear a just-created grid note even before its NoteOn observer arrives.
+        fine.clearStep(channel, anchorStep(slot, resolution, pageOffset), 0);
+        notesDirty = true;
+    }
+
+    boolean wasLimited() { return limited; }
+
+    int move(int direction, boolean heldOnly, IntPredicate include, double resolution) {
+        limited = false;
+        if (!settled || !sameClip()) {
+            diagnostic.accept("NUDGE_NOT_READY settled=" + settled + " pitch=" + pitch);
             return -1;
         }
-        int steps = (int) Math.round(length);
+        if (!mapsGrid(resolution)) {
+            host.showPopupNotification("Fine nudge needs an aligned grid and loop of at most 64 beats");
+            return -1;
+        }
+        int grid = (int) Math.round(resolution / STEP_BEATS);
+        int steps = (int) Math.round(coarse.getLoopLength().get() / STEP_BEATS);
         boolean capture = heldOnly && heldTargets == null;
         if (!heldOnly) heldTargets = null;
         else if (capture) heldTargets = new HashMap<>();
@@ -101,7 +192,9 @@ final class FineNudge {
             if (capture) for (int x : occupied) if (include.test(x)) selected.add(x);
             IntPredicate included = heldOnly ? selected::contains : include;
             for (int x : occupied) if (included.test(x)) gestureOffsets.putIfAbsent(channel * WINDOW + x, 0);
-            for (Move move : plan(occupied, steps, direction, included)) {
+            for (int x : occupied) if (included.test(x) && !withinLimit(x, direction, grid)) limited = true;
+            for (Move move : plan(occupied, steps, direction,
+                    x -> included.test(x) && withinLimit(x, direction, grid))) {
                 fine.moveStep(channel, move.from(), 0, move.to() - move.from(), 0);
                 int offset = gestureOffsets.remove(channel * WINDOW + move.from());
                 gestureOffsets.put(channel * WINDOW + move.to(), offset + Integer.signum(direction));
@@ -112,6 +205,7 @@ final class FineNudge {
                 }
             }
         }
+        notesDirty = true;
         diagnostic.accept("NUDGE pitch=" + pitch + " direction=" + direction + " observed=" + observed + " moved=" + moved);
         // Avoid applying another move against pre-edit observation data.
         settled = false;

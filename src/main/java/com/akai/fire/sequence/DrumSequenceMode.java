@@ -126,6 +126,7 @@ public class DrumSequenceMode extends Layer {
                 driver.getDiagnosticLog()::log) : null;
 
         cursorClip.addNoteStepObserver(this::handleNoteStep);
+        fineNudge.clip().addNoteStepObserver(this::handleFineNoteStep);
         cursorClip.playingStep().addValueObserver(this::handlePlayingStep);
         cursorClip.getLoopLength().addValueObserver(clipLength -> {
             if (markIgnoreOrigLen) {
@@ -210,7 +211,28 @@ public class DrumSequenceMode extends Layer {
         for (int channel = 0; channel < 16; channel++) cursorClip.clearStepsAtY(channel, 0);
     }
 
+    void setLogicalStep(int channel, int step, int velocity, double duration) {
+        fineNudge.setStep(channel, step, velocity, duration, getGridResolution(), positionHandler.getStepOffset());
+    }
+
+    private void clearLogicalStep(int channel, int step) {
+        fineNudge.clearStep(channel, step, getGridResolution(), positionHandler.getStepOffset());
+    }
+
     private void refreshStep(int step) {
+        List<NoteStep> mapped = fineNudge.pageNotes(getGridResolution(), positionHandler.getStepOffset());
+        if (mapped != null) {
+            NoteStep chosen = mapped.stream().filter(note -> note.x() == step).findFirst().orElse(null);
+            if (chosen == null) {
+                // Retain length shading, but don't light a second pad for an early onset.
+                for (int channel = 0; channel < 16; channel++) {
+                    NoteStep sustain = cursorClip.getStep(channel, step, 0);
+                    if (sustain.state() == State.NoteSustain) { chosen = sustain; break; }
+                }
+            }
+            assignments[step] = chosen;
+            return;
+        }
         NoteStep chosen = cursorClip.getStep(noteChannel(), step, 0);
         for (int channel = 0; channel < 16; channel++) {
             NoteStep candidate = cursorClip.getStep(channel, step, 0);
@@ -386,7 +408,7 @@ public class DrumSequenceMode extends Layer {
             if (pressed && !copyHeld.get() && !fixedLengthHeld.get()) {
                 int velocity = accentHandler.velocityForNewStep(index);
                 double duration = positionHandler.getGridResolution() * gatePercent;
-                multiclip.createClip(() -> cursorClip.setStep(noteChannel(), index, 0, velocity, duration));
+                multiclip.createClip(() -> setLogicalStep(noteChannel(), index, velocity, duration));
             }
             return;
         }
@@ -402,7 +424,7 @@ public class DrumSequenceMode extends Layer {
             } else if (note != null && note.state() == State.NoteOn && !addedSteps.contains(index)) {
                 if (wasTap && !modifiedSteps.contains(index)) {
                     registerManualEuclideanStep(index, false);
-                    cursorClip.clearStep(note.channel(), index, 0);
+                    clearLogicalStep(note.channel(), index);
                 } else {
                     modifiedSteps.remove(index);
                 }
@@ -419,7 +441,7 @@ public class DrumSequenceMode extends Layer {
             } else {
                 if (note == null || note.state() == State.Empty || note.state() == State.NoteSustain) {
                     registerManualEuclideanStep(index, true);
-                    cursorClip.setStep(noteChannel(), index, 0, accentHandler.velocityForNewStep(index),
+                    setLogicalStep(noteChannel(), index, accentHandler.velocityForNewStep(index),
                             positionHandler.getGridResolution() * gatePercent);
                     addedSteps.add(index);
                 }
@@ -436,7 +458,7 @@ public class DrumSequenceMode extends Layer {
             final double duration = copyNote.duration();
             expectedNoteChanges.put(noteChannel() * 32 + index, copyNote);
             registerManualEuclideanStep(index, true);
-            cursorClip.setStep(noteChannel(), index, 0, vel, duration);
+            setLogicalStep(noteChannel(), index, vel, duration);
         } else if (note != null && note.state() == State.NoteOn) {
             copyNote = NoteSnapshot.capture(note);
         }
@@ -494,11 +516,11 @@ public class DrumSequenceMode extends Layer {
             resetEuclideanPattern();
             modifiedSteps.addAll(held);
             int moved = fineNudge.move(dir, !held.isEmpty(), fineStep -> held.isEmpty() || held.contains(
-                    (int) Math.floor((cursorClip.getLoopStart().get() + fineStep * FineNudge.STEP_BEATS)
-                            / getGridResolution() + 1e-8) - positionHandler.getStepOffset()));
+                    fineNudge.logicalStep(fineStep, getGridResolution(), positionHandler.getStepOffset())),
+                    getGridResolution());
             if (moved >= 0) {
                 oled.paramInfo(held.isEmpty() ? "Nudge loop" : "Nudge held", fineNudge.offsetText(),
-                        moved > 0 ? "This hold | " + moved + " notes moved" : "No movable notes");
+                        fineNudge.wasLimited() ? "40% step limit" : moved > 0 ? "This hold | " + moved + " notes moved" : "No movable notes");
             } else {
                 oled.paramInfo("Fine nudge", "Clip not ready / unsupported");
             }
@@ -514,7 +536,7 @@ public class DrumSequenceMode extends Layer {
         final List<NoteSnapshot> notes = getOnNotes().stream().map(NoteSnapshot::capture).toList();
         final int availableSteps = Math.min(32, positionHandler.getAvailableSteps());
         if (availableSteps < 1) return;
-        for (NoteSnapshot note : notes) cursorClip.clearStep(note.channel(), note.x(), 0);
+        for (NoteSnapshot note : notes) clearLogicalStep(note.channel(), note.x());
 
         for (final NoteSnapshot noteStep : notes) {
             int pos = noteStep.x() + dir;
@@ -526,7 +548,7 @@ public class DrumSequenceMode extends Layer {
             if (!shiftActive.get()) {
                 expectedNoteChanges.put(noteStep.channel() * 32 + pos, noteStep);
             }
-            cursorClip.setStep(noteStep.channel(), pos, 0, (int) Math.round(noteStep.velocity() * 127), noteStep.duration());
+            setLogicalStep(noteStep.channel(), pos, (int) Math.round(noteStep.velocity() * 127), noteStep.duration());
         }
     }
 
@@ -559,16 +581,16 @@ public class DrumSequenceMode extends Layer {
         if (!clipReady() || !cursorClip.exists().get()) return;
         registerModifiedSteps(getHeldNotes());
         int steps = Math.min(32, positionHandler.getAvailableSteps());
-        for (int channel = 0; channel < 16; channel++) {
-            for (int step = 0; step < steps; step++) {
-                NoteStep note = cursorClip.getStep(channel, step, 0);
-                int key = channel * 32 + step;
-                if (note.state() == State.NoteOn) {
-                    note.setVelocity(groove.apply(key, positionHandler.getStepOffset() + step, note.velocity()));
-                } else {
-                    groove.remove(key);
-                }
-            }
+        List<NoteStep> notes = getOnNotes();
+        Set<Integer> present = new HashSet<>();
+        for (NoteStep note : notes) {
+            int key = note.channel() * 32 + note.x();
+            present.add(key);
+            note.setVelocity(groove.apply(key, positionHandler.getStepOffset() + note.x(), note.velocity()));
+        }
+        for (int channel = 0; channel < 16; channel++) for (int step = 0; step < steps; step++) {
+            int key = channel * 32 + step;
+            if (!present.contains(key)) groove.remove(key);
         }
     }
 
@@ -634,14 +656,19 @@ public class DrumSequenceMode extends Layer {
         final int offset = positionHandler.getStepOffset();
         final double resolution = getGridResolution();
         final boolean[] occupied = new boolean[steps];
+        boolean mappedGrid = fineNudge.mapsGrid(resolution);
         for (int step = 0; step < steps; step++) {
             // Protect sustained notes and notes on every MIDI channel as well.
             for (int channel = 0; channel < 16; channel++) {
-                if (cursorClip.getStep(channel, step, 0).state() != State.Empty) {
+                State state = cursorClip.getStep(channel, step, 0).state();
+                if (state == State.NoteSustain || (!mappedGrid && state == State.NoteOn)) {
                     occupied[step] = true;
                     break;
                 }
             }
+        }
+        for (NoteStep logical : getOnNotes()) {
+            if (logical.x() >= 0 && logical.x() < steps) occupied[logical.x()] = true;
         }
         if (euclideanPattern == null || euclideanSteps != steps
                 || euclideanOffset != offset || euclideanResolution != resolution) {
@@ -653,12 +680,12 @@ public class DrumSequenceMode extends Layer {
         registerModifiedSteps(getHeldNotes());
         final int rotation = Math.floorMod(euclideanRotations.get(note), steps);
         euclideanPattern.rotate(rotation, occupied,
-                step -> cursorClip.setStep(noteChannel(), step, 0, accentHandler.velocityForNewStep(step), resolution * gatePercent),
-                step -> cursorClip.clearStep(noteChannel(), step, 0));
+                step -> setLogicalStep(noteChannel(), step, accentHandler.velocityForNewStep(step), resolution * gatePercent),
+                step -> clearLogicalStep(noteChannel(), step));
         if (!rotating) {
             euclideanPattern.turn(inc, occupied,
-                    step -> cursorClip.setStep(noteChannel(), step, 0, accentHandler.velocityForNewStep(step), resolution * gatePercent),
-                    step -> cursorClip.clearStep(noteChannel(), step, 0));
+                    step -> setLogicalStep(noteChannel(), step, accentHandler.velocityForNewStep(step), resolution * gatePercent),
+                    step -> clearLogicalStep(noteChannel(), step));
         }
         if (rotating) {
             oled.paramInfo("Rotation", "+" + rotation, getPadInfo());
@@ -798,6 +825,8 @@ public class DrumSequenceMode extends Layer {
 
     List<NoteStep> getOnNotes() {
         if (!clipReady()) return List.of();
+        List<NoteStep> mapped = fineNudge.pageNotes(getGridResolution(), positionHandler.getStepOffset());
+        if (mapped != null) return mapped;
         List<NoteStep> notes = new ArrayList<>();
         for (int step = 0; step < Math.min(32, positionHandler.getAvailableSteps()); step++) {
             for (int channel = 0; channel < 16; channel++) {
@@ -857,11 +886,22 @@ public class DrumSequenceMode extends Layer {
 
         refreshStep(newStep);
         final int key = noteStep.channel() * 32 + newStep;
-        if (noteStep.state() == State.NoteOn && expectedNoteChanges.containsKey(key)) {
+        if (!fineNudge.mapsGrid(getGridResolution()) && noteStep.state() == State.NoteOn && expectedNoteChanges.containsKey(key)) {
             final NoteSnapshot previousStep = expectedNoteChanges.get(key);
             expectedNoteChanges.remove(key);
             previousStep.applyTo(noteStep);
         }
+    }
+
+    private void handleFineNoteStep(NoteStep note) {
+        if (!clipReady() || !fineNudge.mapsGrid(getGridResolution()) || note.state() != State.NoteOn) return;
+        int slot = fineNudge.logicalStep(note.x(), getGridResolution(), positionHandler.getStepOffset());
+        if (slot < 0 || slot >= 32) return;
+        // Pending copies are created exactly on the grid, not on an adjacent early note.
+        double beat = cursorClip.getLoopStart().get() + note.x() * FineNudge.STEP_BEATS;
+        if (Math.abs(beat / getGridResolution() - (positionHandler.getStepOffset() + slot)) > 1e-6) return;
+        NoteSnapshot pending = expectedNoteChanges.remove(note.channel() * 32 + slot);
+        if (pending != null) pending.applyTo(note);
     }
 
     private void handlePlayingStep(final int playingStep) {

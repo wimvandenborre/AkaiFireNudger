@@ -182,3 +182,26 @@ writes into Bitwig's Extensions folder.
 If an earlier direct-copy update caused `NoClassDefFoundError` with an
 `EOFException`, install atomically and reload the extension. If Bitwig retains
 the failed class loader, save the project and restart Bitwig.
+
+### Fixed step identity and bounded microtiming
+
+Fine-cursor note onsets now map to the nearest Fire grid slot. An early note
+stays on its original pad, including across page and loop boundaries. Pad
+selection, velocity/recurrence edits, copy, deletion and Euclidean occupancy use
+that same mapping. Insertion and deletion use fine-cursor coordinates so an
+early neighbour in the same Bitwig coarse cell survives.
+
+Held-step and Alt whole-loop nudges are bounded to **±40% of the current grid
+step** around that slot, rounded down to the available 1/64-beat increments.
+At the default 1/16-note grid this permits six clicks either way (37.5%).
+Releasing and re-holding cannot reset the limit. The OLED reports `40% step
+limit` when reached. Pre-existing offsets outside the limit can move back toward
+the nearest slot, but cannot move farther out. The display's movement amount
+still measures the current gesture.
+
+Mapping requires a loop of at most 64 beats, with loop start and length aligned
+to the current grid and grid size aligned to the fine cursor. Unsupported loops
+retain the coarse editing view; fine nudging reports that the grid is unsupported.
+Regression checks cover adjacent early notes, expression/deletion isolation,
+loop/page boundaries, both nudge scopes and Euclidean pulse changes preserving
+original note timing.
