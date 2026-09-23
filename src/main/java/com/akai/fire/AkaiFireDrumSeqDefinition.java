@@ -8,7 +8,7 @@ import com.bitwig.extension.controller.api.ControllerHost;
 import java.util.UUID;
 
 public class AkaiFireDrumSeqDefinition extends ControllerExtensionDefinition {
-    public static final String BUILD_ID = "0.82-step-index-1";
+    public static final String BUILD_ID = "0.82-step-index-2";
     private static final UUID DRIVER_ID = UUID.fromString("24d0db9d-1951-406f-bdcf-d42c32d3d394");
 
     public AkaiFireDrumSeqDefinition() {

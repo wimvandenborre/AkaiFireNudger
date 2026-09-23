@@ -231,3 +231,8 @@ running without the newly installed mapping diagnostics, so installation now
 instructs a full Bitwig restart after saving the project. Confirm the identifier
 before judging the new note-index behavior. Atomic replacement keeps the old
 loaded archive intact; it does not force Bitwig to create a new class loader.
+
+Build `0.82-step-index-2` replaces the startup version popup with a persistent
+**About → Loaded build** entry in the controller settings. Its button displays
+the actual running build and prints it to the controller console when clicked.
+The same console line prints automatically at initialization.

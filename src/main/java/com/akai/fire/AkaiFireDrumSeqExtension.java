@@ -73,6 +73,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         host = getHost();
         diagnosticLog = new DiagnosticLog(host);
         diagnosticLog.log("EXTENSION_INIT build=" + AkaiFireDrumSeqDefinition.BUILD_ID);
+        printBuildInfo();
         Arrays.fill(lastCcValue, -1);
 
         MainCursor mainCursor = new MainCursor(host, 0, 0);
@@ -104,7 +105,6 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         mainLayer.activate();
         drumSequenceMode.activate();
         host.scheduleTask(this::handlePing, 100);
-        getHost().showPopupNotification("FireNudger " + AkaiFireDrumSeqDefinition.BUILD_ID);
 
     }
 
@@ -128,8 +128,14 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         midiOut.sendSysex(singleRgb);
     }
 
+    private void printBuildInfo() {
+        host.println("FireNudger loaded build: " + AkaiFireDrumSeqDefinition.BUILD_ID);
+    }
+
     private void setUpPreferences() {
-        preferences = getHost().getPreferences(); // THIS
+        preferences = getHost().getPreferences();
+        preferences.getSignalSetting("Loaded build", "About", AkaiFireDrumSeqDefinition.BUILD_ID)
+                .addSignalObserver(this::printBuildInfo);
 //        final SettableEnumValue padStyle = preferences.getEnumSetting("Pad Coloring", //
 //                "Visuals", new String[]{"TR-Style", "Bitwig-Colors"}, "TR-Style");
 //        padStyle.markInterested();
