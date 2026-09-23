@@ -267,3 +267,7 @@ stale edits through the normal cursor retargeting path, and leaves selection
 unchanged when no eligible clip is playing. Playback alone still does not move
 the edit cursor. The plain button retains launcher automation write. Playing-scene
 discovery is limited to the observed 16-scene child bank.
+
+Build `0.82-step-index-7` swaps these gestures: **Metronome/Pattern** follows the
+playing child scene; **Shift + Metronome/Pattern** toggles launcher automation
+write. Plain presses outside group-child mode show the mode requirement.

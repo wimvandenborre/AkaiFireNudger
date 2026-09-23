@@ -572,7 +572,7 @@ public class DrumSequenceMode extends Layer {
     }
 
     public boolean followPlayingSceneShortcut() {
-        if (!shiftActive.get()) return false;
+        if (shiftActive.get()) return false;
         if (multiclip != null) multiclip.followPlayingScene();
         else {
             oled.paramInfo("Follow scene", "Group child mode only");
