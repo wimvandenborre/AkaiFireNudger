@@ -311,3 +311,7 @@ ignored. Scene launches leave the captured clips alone until another manual
 selection. **Follow editor selection** preserves the previous optional behavior.
 Checks cover fixed-track acquisition, STOP, manual capture, later scene launches,
 editor changes, lane switching, unavailable targets, and Metronome recovery.
+
+The user confirmed Metronome works with build `0.82-step-index-11`.
+README now documents both settings and distinguishes the captured editing scene
+from launcher playback, with a scene 2 → scene 5 example.

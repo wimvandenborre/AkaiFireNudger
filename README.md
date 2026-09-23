@@ -110,6 +110,25 @@ attachment, ties prefer the selected lane. **Shift + Metronome/Pattern** toggles
 
 With a hard pin configured, **STOP** keeps that group pinned and preserves the editing scene. **Metronome** works without pressing STOP first; it acquires the configured group if needed. A missing/non-group target reports an error rather than choosing another track. To change racks, change the hard-pin setting; with `0`, select a group or child in Bitwig and press STOP. Choose **Selected track** as the clip source to return to the original single-track workflow.
 
+### Manual editing selection and playback
+
+The settings under **Sequencer** control the rack and the clips selected for editing:
+
+| Setting | Default | Behaviour |
+| --- | --- | --- |
+| Hard pin group track (0 = selected group) | `1` | Keeps the rack controls on top-level track 1. Set another track number for a different group, or `0` to acquire the selected group with STOP. |
+| Child clip selection | Manual (Metronome) | Keeps the captured child scene selected for editing when Bitwig launches or selects another scene. **Follow editor selection** allows Bitwig clip selection to change the Fire's lane and scene. |
+
+**Pinning holds the editing selection, not playback.** Launching another scene changes which MIDI clips play according to Bitwig's normal launcher behaviour. The Fire can continue showing and editing the previously captured clips even though those clips are no longer playing. Their edits become audible when those clips play again.
+
+For example:
+
+1. Launch scene 2, wait for it to start, then press **Metronome**. The Fire edits scene 2's child clips.
+2. Launch scene 5. Bitwig plays scene 5, while the Fire continues editing scene 2.
+3. Press **Metronome** again to select scene 5's child clips for editing. Switching drum pads then accesses the other children in scene 5.
+
+**STOP** preserves an established hard pin and captured editing scene. There is no need to press STOP before Metronome. **Shift + Metronome** continues to toggle clip-launcher automation write.
+
 ### Child clip launching
 
 With **Functionalities → Second Row → ClipLaunch-Row**:
