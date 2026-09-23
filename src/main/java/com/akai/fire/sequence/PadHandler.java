@@ -135,13 +135,14 @@ public class PadHandler {
         } else if (parent.isShiftHeld()) {
             pad.pad.color().set(getPadColor(pad.pad));
         } else if (parent.isDeleteHeld()) {
-            if (pad.index == selectedPadIndex) {
-                cursorClip.clearStepsAtY(0, 0);
+            if (pad.index == selectedPadIndex && parent.clipReady()) {
+                parent.clearNoteRow();
             } else {
                 parent.registerPendingAction(new NoteAction(selectedPadIndex, pad.index, Type.CLEAR));
                 pad.pad.selectInEditor();
             }
         } else {
+            parent.clearPendingAction();
             // Normal pad selection (only if Select is not held)
             pad.pad.selectInEditor();
             padsHeld.add(pad.index);
@@ -176,20 +177,17 @@ public class PadHandler {
         return colors[colorIndex];
     }
 
-    void executeCopy(final List<NoteStep> notes, final boolean copyParams) {
-        cursorClip.clearStepsAtY(0, 0);
-        for (final NoteStep noteStep : notes) {
-            // TODO: this is an API bug
-            cursorClip.setStep(noteStep.x(), 0, 100, 0.25);
-//            cursorClip.setStep(noteStep.x(), 0, (int) (noteStep.velocity() * 127), noteStep.duration());
-            if (copyParams) {
-                parent.registerExpectedNoteChange(noteStep.x(), noteStep);
-            }
+    void executeCopy(final List<NoteSnapshot> notes, final boolean copyParams) {
+        parent.clearNoteRow();
+        for (final NoteSnapshot noteStep : notes) {
+            if (copyParams) parent.registerExpectedNoteChange(noteStep.x(), noteStep);
+            cursorClip.setStep(parent.noteChannel(), noteStep.x(), 0,
+                    (int) Math.round(noteStep.velocity() * 127), noteStep.duration());
         }
     }
 
     void executeClear(final int origIndex) {
-        cursorClip.clearStepsAtY(0, 0);
+        parent.clearNoteRow();
         if (origIndex != -1) {
             pads.get(origIndex).pad.selectInEditor();
         }
@@ -202,10 +200,10 @@ public class PadHandler {
      * @param pad destination pad of copy.
      */
     private void doNotesPadCopy(final PadContainer pad) {
-        if (pad.index != selectedPadIndex) {
+        if (parent.clipReady() && pad.index != selectedPadIndex) {
             final List<NoteStep> notes = parent.getOnNotes();
             parent.registerPendingAction(new NoteAction(selectedPadIndex, pad.index, Type.COPY_PAD, notes));
-            cursorClip.scrollToKey(drumScrollOffset + pad.index);
+            if (parent.getMulticlip() == null) cursorClip.scrollToKey(drumScrollOffset + pad.index);
             pad.pad.selectInEditor();
         }
     }
@@ -228,12 +226,25 @@ public class PadHandler {
         parent.getOled().showInfo(padDisplayInfo);
 
         selectedPad.updateDisplay(displayTarget.getTypeIndex());
+        if (parent.getMulticlip() != null) {
+            parent.getMulticlip().whenReady(this::executePendingPadAction);
+        } else {
+            executePendingPadAction();
+        }
+    }
+
+    private void executePendingPadAction() {
         final NoteAction pendingAction = parent.getPendingAction();
         if (pendingAction != null && pendingAction.getDestPadIndex() == selectedPadIndex) {
             if (pendingAction.getType() == Type.CLEAR) {
                 executeClear(pendingAction.getSrcPadIndex());
             } else if (pendingAction.getType() == Type.COPY_PAD) {
-                executeCopy(pendingAction.getCopyNotes(), !parent.isShiftHeld());
+                boolean copyParams = !parent.isShiftHeld();
+                if (parent.getMulticlip() != null && !cursorClip.exists().get()) {
+                    parent.getMulticlip().createClip(() -> executeCopy(pendingAction.getCopyNotes(), copyParams));
+                } else {
+                    executeCopy(pendingAction.getCopyNotes(), copyParams);
+                }
             }
             parent.clearPendingAction();
         }
@@ -258,7 +269,7 @@ public class PadHandler {
     public void focusOnSelectedPad() {
         parent.resetEuclideanPattern();
         final int padIndex = selectedPad != null ? selectedPad.index : 0;
-        cursorClip.scrollToKey(drumScrollOffset + padIndex);
+        parent.focusNote(drumScrollOffset + padIndex);
     }
 
     int getSelectedNote() {

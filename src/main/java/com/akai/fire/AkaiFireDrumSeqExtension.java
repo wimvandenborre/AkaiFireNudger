@@ -344,6 +344,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
 
     @Override
     public void exit() {
+        if (drumSequenceMode != null) drumSequenceMode.deactivate();
         diagnosticLog.log("EXTENSION_EXIT");
         getHost().showPopupNotification("Exit Akai Fire Drum Seq");
     }

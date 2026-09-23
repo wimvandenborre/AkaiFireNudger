@@ -78,3 +78,68 @@ The resulting note velocities save with the clip; shape/amount and the original
 velocity snapshot are temporary, and are not saved across extension reloads.
 
 Check with `java -cp target/classes:target/test-classes com.akai.fire.sequence.VelocityGrooveChecks`.
+
+### Multi-clip drums on a group rack
+
+Select **Sequencer → Clip source (reload extension) → Group child tracks** in
+FireNudger's preferences, then reload the extension. **Selected track** remains
+the default and retains the existing single-clip workflow.
+
+Put the Drum Machine on a group track and route its direct child note tracks
+into that group instrument. Select the group (or one of its children) before
+loading the extension. It finds and pins the parent group for drum-pad controls;
+a separate cursor edits child clips. Tracks and routing must already exist.
+The first 16 direct-child positions map to notes **36–51** and new notes use
+MIDI channels **1–16**, respectively, matching Oikontrol. Audio tracks and nested
+groups are not editable lanes; they still occupy their child position. Pad
+positions beyond note 51 have no child mapping.
+
+The existing layout and controls remain: first row selects the group drum pads,
+last two rows edit the selected child's 32-step page. Pad mute/solo, macros,
+accent, repeat, Euclidean pulses/rotation, velocity groove, note properties,
+copy and clear continue to operate in their existing roles. Each child clip has
+its own loop length. Press a step in an empty child slot to create a four-beat
+clip and insert that step. Edits wait for both clip cursors to settle; changing
+lanes cancels deferred edits. Copies snapshot note properties before moving the
+cursor, retaining velocity, duration, chance, recurrence and repeat settings.
+
+With **Functionalities → Second Row → ClipLaunch-Row** (reload after changing):
+
+- Clip pads select/launch or create a clip on the selected child, retaining the
+  scene index when switching drum pads. The row lights show that child's clips.
+- **Alt + clip pad** launches existing clips in that scene across eligible
+  children and creates four-beat clips in empty child slots. Newly created
+  empty clips are not automatically launched; press again to launch them.
+- Copy, Delete (clear), Shift + Delete (remove), and Shift (cycle color) act on
+  the selected child, as in the single-track workflow.
+- In child-track mode, **STOP** reacquires the group from the current editor
+  selection. Select a different group in Bitwig and press STOP to switch racks.
+  In single-track mode STOP retains its track-pin toggle.
+
+### Fine nudging
+
+The Oikontrol fine-cursor approach replaces the old hard-coded note-36 nudge.
+Both clip sources support **held step(s) + Bank left/right** for fine nudging,
+and **Alt + Bank left/right** with no held steps for the selected drum's entire
+loop. One press moves **1/64 beat** (the source code's timing unit), preserving
+note properties and MIDI channels. The selected drum pitch, current grid/page,
+and nonzero loop start are respected. Notes wrap within the loop; moves that
+would overwrite an unmoved note are skipped. A completely filled fine grid is
+left unchanged. Fine nudging supports loops up to 64 beats with loop start and
+length aligned to that fine grid; other loops show a notification.
+
+Bank left/right without held steps or Alt still rotates the visible page by
+one grid step. Notes on other pages remain intact. Shift + Bank retains
+Undo/Redo, once per press/release. Releasing a nudged step does not toggle it off.
+
+Run all regression checks and produce `target/FireNudger.bwextension` with
+`./scripts/check-sequencer.sh` (Java 17 and cached Maven dependencies required).
+The multi-clip implementation and fine-nudge approach were adapted from
+Oiko Audio's Oikontrol v2.23.0; its MIT copyright notices are retained in LICENSE.
+
+Hardware acceptance check: use a group with at least two note children and a
+shared Drum Machine, edit different scenes and loop lengths, copy between pads,
+try held-step and Alt lane nudges on notes 36 and 37, and switch lanes while
+holding a step. Verify group macros/mute/solo, Euclidean controls, groove, and
+the default single-track mode in Bitwig. Automated checks simulate cursor
+settling and note operations; they do not replace this live controller check.

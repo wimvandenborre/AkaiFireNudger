@@ -6,6 +6,7 @@ public class StepViewPosition {
     
     private double gridResolution;
     private double loopLength = 0.0;
+    private double loopStart = 0.0;
     private int pagePosition = 0;
     private int pages = 0;
     private int steps;
@@ -25,7 +26,8 @@ public class StepViewPosition {
         this.stepsPerPage = stepsPerPage;
         this.clip.setStepSize(gridResolution);
         clip.getLoopLength().addValueObserver(this::handleLoopLengthChanged);
-        clip.scrollToStep(pagePosition * stepsPerPage);
+        clip.getLoopStart().addValueObserver(start -> { loopStart = start; updateStates(); });
+        clip.scrollToStep(getStepOffset());
     }
     
     public double lengthWithLastStep(final int index) {
@@ -74,8 +76,9 @@ public class StepViewPosition {
     }
     
     private void updateStates() {
+        pagePosition = Math.max(0, Math.min(pagePosition, Math.max(0, pages - 1)));
         if (pagePosition < pages) {
-            clip.scrollToStep(pagePosition * stepsPerPage);
+            clip.scrollToStep(getStepOffset());
         }
         canScrollLeft.set(pagePosition > 0);
         canScrollRight.set(pagePosition < pages - 1);
@@ -95,7 +98,7 @@ public class StepViewPosition {
     }
     
     public int getStepOffset() {
-        return pagePosition * stepsPerPage;
+        return (int) Math.floor(loopStart / gridResolution + 1e-8) + pagePosition * stepsPerPage;
     }
     
     public double getPosition() {
@@ -114,7 +117,7 @@ public class StepViewPosition {
         steps = (int) (this.loopLength / gridResolution);
         stepsValue.set(steps);
         pages = Math.max(0, steps - 1) / stepsPerPage + 1;
-        clip.scrollToStep(pagePosition * stepsPerPage);
+        clip.scrollToStep(getStepOffset());
         
         updateStates();
     }
@@ -130,15 +133,15 @@ public class StepViewPosition {
     public void scrollLeft() {
         if (pagePosition > 0) {
             pagePosition--;
-            clip.scrollToStep(pagePosition * stepsPerPage);
+            clip.scrollToStep(getStepOffset());
             updateStates();
         }
     }
     
     public void scrollRight() {
-        if (pagePosition < pages) {
+        if (pagePosition < pages - 1) {
             pagePosition++;
-            clip.scrollToStep(pagePosition * stepsPerPage);
+            clip.scrollToStep(getStepOffset());
             updateStates();
         }
     }

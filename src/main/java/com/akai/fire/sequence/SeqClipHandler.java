@@ -24,7 +24,7 @@ public class SeqClipHandler {
     public SeqClipHandler(final AkaiFireDrumSeqExtension driver, final DrumSequenceMode parent, final Layer clipLayer) {
         this.parent = parent;
         this.cursorClip = parent.getCursorClip();
-        cursorTrack = driver.getViewControl().getCursorTrack();
+        cursorTrack = parent.getEditTrack();
         slotBank = cursorTrack.clipLauncherSlotBank();
         initClipControlButtons(clipLayer, driver);
     }
@@ -105,6 +105,11 @@ public class SeqClipHandler {
         if (!pressed) {
             return;
         }
+        if (parent.getMulticlip() != null) {
+            parent.getMulticlip().scene(index, parent.isCopyHeld(), parent.isDeleteHeld(),
+                    parent.isShiftHeld(), parent.isAltHeld());
+            return;
+        }
         final boolean hasContent = slot.hasContent().get();
         if (hasContent) {
             if (parent.isDeleteHeld()) {
@@ -145,7 +150,7 @@ public class SeqClipHandler {
     public void notifyBlink(final int blinkState) {
         this.blinkState = blinkState;
     }
-	private Color getSlotColor(ClipLauncherSlot slot) {
+	static Color getSlotColor(ClipLauncherSlot slot) {
 		Color[] colors = {
 			Color.fromHex("#d92e24"), // red
 			Color.fromHex("#ff5706"), // orange

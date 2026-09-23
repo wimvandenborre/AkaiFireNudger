@@ -64,6 +64,12 @@ public class RecurrenceEditor {
 
 	}
 
+	public void cancel() {
+		pendingRelease = false;
+		editedSteps = null;
+		layer.deactivate();
+	}
+
 	public void exitRecurrenceEdit() {
 		pendingRelease = true;
 	}
