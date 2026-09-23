@@ -522,7 +522,8 @@ public class DrumSequenceMode extends Layer {
         if (!pressed || !clipReady()) return;
         final Set<Integer> held = heldSteps.stream().collect(Collectors.toSet());
         if (!held.isEmpty() || isAltHeld()) {
-            resetEuclideanPattern();
+            // Fine timing keeps logical slots fixed, so generated notes retain Euclidean ownership.
+            // Only pad insertion/deletion/copy transfers a slot to manual ownership.
             modifiedSteps.addAll(held);
             int moved = fineNudge.move(dir, !held.isEmpty(), fineStep -> held.isEmpty() || held.contains(
                     fineNudge.logicalStep(fineStep, getGridResolution(), positionHandler.getStepOffset())),

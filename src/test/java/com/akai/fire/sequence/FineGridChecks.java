@@ -96,6 +96,8 @@ public final class FineGridChecks {
         pattern.turn(-4, euclid.occupied(), add, remove);
         check(euclid.fine.notes.equals(Set.of("2:15", "2:48")), "Euclidean return to zero preserves originals");
 
+        generatedNotesRemainOwnedAfterNudging();
+
         Fixture delayed = new Fixture(1);
         delayed.nudge.setStep(2, 0, 100, 0.125, 0.25, 16);
         delayed.fine.hidden.add("2:0"); // write exists in DAW, NoteOn observation has not arrived
@@ -117,6 +119,31 @@ public final class FineGridChecks {
                 "pre-existing out-of-range note can only move back toward its anchor");
         System.out.println("Fine grid checks passed: fixed pads, edit/delete/create isolation, repeated-hold and Alt caps, page/loop seams, Euclidean original protection.");
     }
+    private static void generatedNotesRemainOwnedAfterNudging() {
+        for (int direction : new int[]{-1, 1}) for (int target : new int[]{2, -1}) {
+            Fixture f = new Fixture(1, "2:16"); // manual original on slot 1
+            EuclideanPattern pattern = new EuclideanPattern(f.occupied());
+            IntConsumer add = slot -> f.nudge.setStep(2, slot, 100, 0.125, 0.25, 16);
+            IntConsumer remove = slot -> f.nudge.clearStep(2, slot, 0.25, 16);
+            pattern.turn(4, f.occupied(), add, remove);
+            MulticlipTargetChecks.drain();
+            check(f.move(direction, target) == (target < 0 ? 4 : 1), "generated held/Alt nudge");
+            f.nudge.resetSelection(); // release the gesture
+            check(pattern.getPulses() == 4, "nudging retains pulse count and ownership");
+            pattern.turn(-3, f.occupied(), add, remove);
+            MulticlipTargetChecks.drain();
+            check(f.fine.notes.stream().noneMatch(key -> key.equals("2:" + (32 + direction))),
+                    "reducing pulse count removes the nudged generated note at its actual position");
+            pattern.turn(-1, f.occupied(), add, remove);
+            MulticlipTargetChecks.drain();
+            String manual = "2:" + (16 + (target < 0 ? direction : 0));
+            check(f.fine.notes.equals(Set.of(manual)), "zero pulses removes generated notes only, preserving manual timing");
+            pattern.turn(4, f.occupied(), add, remove);
+            MulticlipTargetChecks.drain();
+            check(f.fine.notes.size() == 4 && f.fine.notes.contains(manual), "pulse count can increase again without duplicate leftovers");
+        }
+    }
+
     static Set<Integer> slots(List<NoteStep> notes) {
         Set<Integer> result = new HashSet<>();
         for (NoteStep note : notes) result.add(note.x());

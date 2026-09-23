@@ -236,3 +236,15 @@ Build `0.82-step-index-2` replaces the startup version popup with a persistent
 **About → Loaded build** entry in the controller settings. Its button displays
 the actual running build and prints it to the controller console when clicked.
 The same console line prints automatically at initialization.
+
+### Euclidean ownership survives fine nudging (0.82-step-index-3)
+
+Held-step and Alt loop nudges no longer reset the active Euclidean overlay.
+Generated notes keep their logical-slot ownership and pulse count, so reducing
+pulses removes them at their nudged fine positions. Manual notes remain protected,
+including when they were nudged together with generated notes. Explicit manual
+pad edits still transfer ownership as before. Page rotation and context changes
+retain their existing reset behavior.
+
+Regression coverage generates pulses, nudges in both directions with both scopes,
+reduces pulses to zero, checks manual-note timing, then increases pulses again.
