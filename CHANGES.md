@@ -271,3 +271,10 @@ discovery is limited to the observed 16-scene child bank.
 Build `0.82-step-index-7` swaps these gestures: **Metronome/Pattern** follows the
 playing child scene; **Shift + Metronome/Pattern** toggles launcher automation
 write. Plain presses outside group-child mode show the mode requirement.
+
+Build `0.82-step-index-8` fixes the playing-scene cursor handoff: retargeting waits
+for unpinning and child-track selection, then selects and opens the target slot
+in Bitwig's editor while waiting for both clip cursors to match. This addresses
+live timeouts where the desired scene changed but both cursors remained on the
+previous scene. STOP in group mode continues to reacquire the group, not toggle
+its pin; the group stays pinned to retain drum-device controls.

@@ -2,7 +2,7 @@
 
 A Bitwig Studio drum-sequencer extension for the Akai Fire, based on Eric Ahrens' controller code, with additional work by R. Hawtin and this fork. This README describes the additions and changed controls in this version; [CHANGES.md](CHANGES.md) contains the development history.
 
-Current build: **`0.82-step-index-7`**. Requires **Bitwig controller API 20**. The original single-track workflow remains available, alongside optional child-track clips feeding a group drum rack.
+Current build: **`0.82-step-index-8`**. Requires **Bitwig controller API 20**. The original single-track workflow remains available, alongside optional child-track clips feeding a group drum rack.
 
 ## Differences from Eric's original
 
@@ -97,7 +97,7 @@ Press a step in an empty child slot to create a four-beat clip and insert a note
 Press **Metronome/Pattern** after launching a scene to move the Fire's
 editing selection to the most recently started scene with a playing eligible
 child clip. The selected drum lane stays the same, even if its slot in that scene
-is empty. Switching drum pads then edits that same scene. The shortcut does not
+is empty. Switching drum pads then edits that same scene. The shortcut opens the target slot in Bitwig’s editor and does not
 launch, create or stop any clips; ordinary scene playback does not automatically
 move the Fire's editing selection. Press after the launch quantization boundary,
 when the new clips are actually playing. With no playing child clip, selection
@@ -178,7 +178,7 @@ python3 scripts/install-extension.py "/path/to/Bitwig Studio/Extensions/FireNudg
 
 It validates the archive and replaces it atomically. **Save the project and fully quit/reopen Bitwig after installing.** Restarting only the controller can retain cached code. Avoid overwriting a loaded archive with a direct copy; this previously caused class-loading errors. `mvn install` no longer deploys into Bitwig's Extensions folder.
 
-In the Fire controller settings, **About → Loaded build** shows the running version. Clicking it prints the version to Bitwig's controller console; the console also prints it at initialization. The current expected build is `0.82-step-index-7`.
+In the Fire controller settings, **About → Loaded build** shows the running version. Clicking it prints the version to Bitwig's controller console; the console also prints it at initialization. The current expected build is `0.82-step-index-8`.
 
 `FireNudger.log` in the Bitwig Extensions folder records startup, group/child selection, note-to-pad mappings and nudge diagnostics. Automated checks cover Euclidean ownership, velocity groove, delayed observations, collisions, loop/page seams, channel isolation and copy snapshots. Hardware testing is still needed when changing controller behaviour.
 

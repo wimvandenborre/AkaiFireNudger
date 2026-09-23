@@ -26,6 +26,7 @@ final class MulticlipTarget {
     private boolean groupReady;
     private boolean ready;
     private boolean targeting;
+    private boolean targetOpened;
     private boolean expectContent;
     private boolean previousPin;
     private int groupPosition = -1;
@@ -256,6 +257,7 @@ final class MulticlipTarget {
             return;
         }
         targeting = true;
+        targetOpened = false;
         diagnostic.accept("MULTICLIP_TARGET lane=" + lane + " scene=" + scene
                 + " child=" + children.getItemAt(lane).name().get()
                 + " position=" + children.getItemAt(lane).position().get()
@@ -265,7 +267,6 @@ final class MulticlipTarget {
         clip.isPinned().set(false);
         fine.isPinned().set(false);
         editor.selectChannel(children.getItemAt(lane));
-        slot(lane, scene).select();
         awaitTarget(generation, 0);
     }
 
@@ -285,7 +286,15 @@ final class MulticlipTarget {
         host.scheduleTask(() -> {
             if (!active || ticket != generation) return;
             if (!eligible(lane)) { fail("Child track unavailable"); return; }
-            if (!matches()) {
+            if (!targetOpened || !matches()) {
+                // Unpin and track changes are asynchronous. A slot selection made before
+                // they settle can be lost, and select() alone need not open the detail editor.
+                if (!editor.isPinned().get() && !clip.isPinned().get() && !fine.isPinned().get()
+                        && editor.position().get() == children.getItemAt(lane).position().get()) {
+                    slot(lane, scene).select();
+                    slot(lane, scene).showInEditor();
+                    targetOpened = true;
+                }
                 if (attempt < 20) awaitTarget(ticket, attempt + 1);
                 else {
                     diagnostic.accept("MULTICLIP_TIMEOUT editor=" + editor.position().get()

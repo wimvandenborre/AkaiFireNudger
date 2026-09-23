@@ -167,8 +167,16 @@ public final class MulticlipTargetChecks {
         long launchOrCreate = calls.stream().filter(c -> c.endsWith(".launch") || c.endsWith(".createEmptyClip")).count();
         target.followPlayingScene();
         check(!target.ready() && target.midiNote() == 37, "follow retains lane and invalidates old edits");
+        clip.node("isPinned").value = true; // Bitwig has not acknowledged the unpin request yet
+        tick();
+        check(!calls.contains("group.createMainTrackBank.getItemAt1.clipLauncherSlotBank.getItemAt6.select"),
+                "slot selection waits for cursor unpin acknowledgement");
+        clip.node("isPinned").value = false;
+        tick(); // now unpin and track position are settled
         check(calls.contains("group.createMainTrackBank.getItemAt1.clipLauncherSlotBank.getItemAt6.select"),
                 "latest playing scene beats older clip still playing on selected lane");
+        check(calls.contains("group.createMainTrackBank.getItemAt1.clipLauncherSlotBank.getItemAt6.showInEditor"),
+                "follow explicitly opens selected slot in editor");
         setClip(clip, 12, 6, false);
         setClip(fine, 12, 6, false);
         drain();
