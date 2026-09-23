@@ -302,7 +302,10 @@ final class MulticlipTarget {
                             + " fineTrack=" + fine.getTrack().position().get()
                             + " coarseScene=" + clip.clipLauncherSlot().sceneIndex().get()
                             + " fineScene=" + fine.clipLauncherSlot().sceneIndex().get()
-                            + " coarseExists=" + clip.exists().get() + " fineExists=" + fine.exists().get());
+                            + " coarseExists=" + clip.exists().get() + " fineExists=" + fine.exists().get()
+                            + " editorPinned=" + editor.isPinned().get()
+                            + " coarsePinned=" + clip.isPinned().get() + " finePinned=" + fine.isPinned().get()
+                            + " targetOpened=" + targetOpened + " slotSelected=" + slot(lane, scene).isSelected().get());
                     fail("Clip unavailable; select again");
                 }
                 return;
@@ -314,8 +317,8 @@ final class MulticlipTarget {
                 if (ticket != generation || !eligible(lane) || !matches()) return;
                 ready = true;
                 targeting = false;
-                clip.isPinned().set(true);
-                fine.isPinned().set(true);
+                // Like Oiko, keep child clip cursors following selection. Only the rack
+                // cursor is pinned; playing a scene does not itself select its clips.
                 // Read the fresh grid only after both cursors and key windows have settled.
                 Runnable action = pending;
                 pending = null;

@@ -278,3 +278,12 @@ in Bitwig's editor while waiting for both clip cursors to match. This addresses
 live timeouts where the desired scene changed but both cursors remained on the
 previous scene. STOP in group mode continues to reacquire the group, not toggle
 its pin; the group stays pinned to retain drum-device controls.
+
+
+Build `0.82-step-index-9` aligns child cursor following with Oiko: the child
+track cursor is created with selection following enabled, and both child clip
+cursors remain unpinned after retargeting. Only the group rack cursor stays
+pinned. Playing-scene detection already found the requested scene; the old
+non-following/pinned child cursors could remain on the previous clip. Timeout
+logging now includes all three cursor pin states and the target slot selection.
+This change needs a full Bitwig restart and hardware verification.

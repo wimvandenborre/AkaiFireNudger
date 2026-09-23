@@ -86,6 +86,12 @@ public final class MulticlipTargetChecks {
         setClip(fine, 11, 0, true);
         drain();
         check(target.ready() && ready[0] == 1, "first lane settled");
+        check(Boolean.FALSE.equals(editor.node("isPinned").value)
+                && Boolean.FALSE.equals(clip.node("isPinned").value)
+                && Boolean.FALSE.equals(fine.node("isPinned").value),
+                "settled child cursors keep following selection, as in Oiko");
+        check(Boolean.TRUE.equals(group.node("isPinned").value),
+                "following child selection must not unpin the rack");
         target.selectNote(37);
         target.whenReady(() -> edited[0]++);
         check(!target.ready(), "lane change blocks stale edits");

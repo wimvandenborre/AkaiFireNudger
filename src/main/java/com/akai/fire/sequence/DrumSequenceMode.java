@@ -116,7 +116,7 @@ public class DrumSequenceMode extends Layer {
         final boolean childClips = clipSource.get().equals("Group child tracks");
         driver.getDiagnosticLog().log("CLIP_SOURCE mode=" + clipSource.get() + " childClips=" + childClips);
         editTrack = childClips
-                ? host.createCursorTrack("FIRE_CHILD_CLIP", "Fire child clip", 0, 16, false)
+                ? host.createCursorTrack("FIRE_CHILD_CLIP", "Fire child clip", 0, 16, true)
                 : cursorTrack;
         cursorClip = editTrack.createLauncherCursorClip("SQClip", "SQClip", 32, 1);
         fineNudge = new FineNudge(host, editTrack, cursorClip, driver.getDiagnosticLog()::log);
