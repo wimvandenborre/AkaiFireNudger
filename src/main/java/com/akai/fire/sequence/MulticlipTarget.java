@@ -12,6 +12,10 @@ final class MulticlipTarget {
     private final CursorTrack group;
     private final CursorTrack editor;
     private final TrackBank children;
+    private final TrackBank fixedTracks;
+    private int hardPinTrack;
+    private boolean manualSelection = true;
+    private boolean refreshAfterAcquire;
     private final PinnableCursorClip clip;
     private final PinnableCursorClip fine;
     private final Runnable invalidate;
@@ -53,6 +57,13 @@ final class MulticlipTarget {
         this.feedback = feedback;
         this.diagnostic = diagnostic;
         this.onLane = onLane;
+        fixedTracks = host.createTrackBank(128, 0, 0, false);
+        for (int i = 0; i < 128; i++) {
+            Track track = fixedTracks.getItemAt(i);
+            track.exists().markInterested();
+            track.isGroup().markInterested();
+            track.position().markInterested();
+        }
         group.exists().markInterested();
         group.isGroup().markInterested();
         group.position().markInterested();
@@ -93,21 +104,81 @@ final class MulticlipTarget {
         }
     }
 
+    void initPreferences(Preferences preferences) {
+        preferences.getNumberSetting("Hard pin group track (0 = selected group)", "Sequencer",
+                0, 128, 1, "", 1).addRawValueObserver(value -> configureHardPin((int) Math.round(value)));
+        preferences.getEnumSetting("Child clip selection", "Sequencer",
+                new String[]{"Manual (Metronome)", "Follow editor selection"}, "Manual (Metronome)")
+                .addValueObserver(value -> configureManualSelection(value.equals("Manual (Metronome)")));
+    }
+
+    void configureHardPin(int trackNumber) {
+        if (hardPinTrack == trackNumber) return;
+        hardPinTrack = trackNumber;
+        groupPosition = -1;
+        if (active) acquireGroup();
+    }
+
+    void configureManualSelection(boolean manual) {
+        if (manualSelection == manual) return;
+        manualSelection = manual;
+        selectionGeneration++;
+        if (active && ready()) {
+            editor.isPinned().set(manual);
+            clip.isPinned().set(manual);
+            fine.isPinned().set(manual);
+        }
+    }
+
     static int laneForNote(int note) {
         return note >= FIRST_NOTE && note < FIRST_NOTE + LANES ? note - FIRST_NOTE : -1;
     }
 
     void acquireGroup() {
+        acquireGroup(false);
+    }
+
+    private void acquireGroup(boolean refresh) {
+        refreshAfterAcquire = refresh;
+        // STOP must not release an established hard pin or discard the editing scene.
+        if (active && hardPinTrack > 0 && eligible(lane)
+                && fixedTrack().exists().get() && fixedTrack().isGroup().get()
+                && group.position().get() == fixedTrack().position().get()) {
+            group.isPinned().set(true);
+            if (refresh) followPlayingScene();
+            return;
+        }
         if (!active) previousPin = group.isPinned().get();
         active = true;
         groupReady = false;
         java.util.Arrays.fill(scenePlayOrder, 0);
         playOrder = 0;
         cancel();
-        group.isPinned().set(false);
+        group.isPinned().set(hardPinTrack > 0);
         diagnostic.accept("MULTICLIP_ACQUIRE group=" + group.position().get());
         long ticket = generation;
-        host.scheduleTask(() -> seekGroup(ticket, 0), 50);
+        host.scheduleTask(() -> {
+            if (hardPinTrack > 0) seekFixedGroup(ticket, 0);
+            else seekGroup(ticket, 0);
+        }, 50);
+    }
+
+    private Track fixedTrack() { return fixedTracks.getItemAt(hardPinTrack - 1); }
+
+    private void seekFixedGroup(long ticket, int attempt) {
+        if (!active || ticket != generation) return;
+        Track target = fixedTrack();
+        if (target.exists().get() && target.isGroup().get()) {
+            group.isPinned().set(true);
+            if (attempt == 0 || group.position().get() != target.position().get() || !group.isGroup().get()) {
+                group.selectChannel(target);
+            } else {
+                seekGroup(ticket, 0);
+                return;
+            }
+        }
+        if (attempt < 20) host.scheduleTask(() -> seekFixedGroup(ticket, attempt + 1), 50);
+        else fail("Track " + hardPinTrack + " must be a group");
     }
 
     private void seekGroup(long ticket, int attempt) {
@@ -121,12 +192,17 @@ final class MulticlipTarget {
                     fail("Select group, press STOP");
                     return;
                 }
+                boolean keepScene = manualSelection && groupPosition == group.position().get();
                 groupPosition = group.position().get();
                 groupReady = true;
-                chooseInitialClip();
+                if (!keepScene || !eligible(lane)) chooseInitialClip();
                 diagnostic.accept("MULTICLIP_GROUP position=" + groupPosition + " lane=" + lane + " scene=" + scene);
                 onGroup.run();
-                retarget(null);
+                if (refreshAfterAcquire) {
+                    refreshAfterAcquire = false;
+                    if (eligible(lane)) followPlayingScene();
+                    else fail("No note children in group");
+                } else retarget(null);
             }, 100);
         } else if (attempt < 20) {
             if (group.exists().get()) group.selectParent();
@@ -161,7 +237,7 @@ final class MulticlipTarget {
     }
 
     private void observeSelection(int child, int index, boolean selected) {
-        if (!active || targeting || !selected || !eligible(child) || (child == lane && index == scene)) return;
+        if (manualSelection || !active || targeting || !selected || !eligible(child) || (child == lane && index == scene)) return;
         long ticket = ++selectionGeneration;
         host.scheduleTask(() -> {
             if (ticket != selectionGeneration || !active || !eligible(child)
@@ -177,7 +253,7 @@ final class MulticlipTarget {
         active = false;
         groupReady = false;
         cancel();
-        group.isPinned().set(previousPin);
+        group.isPinned().set(hardPinTrack > 0 || previousPin);
     }
 
     private boolean eligible(int index) {
@@ -205,6 +281,10 @@ final class MulticlipTarget {
     /** Selection only: use the latest playing scene, preserving the current drum lane. */
     void followPlayingScene() {
         if (!active || !eligible(lane)) {
+            if (active && hardPinTrack > 0) {
+                acquireGroup(true);
+                return;
+            }
             feedback.accept("Select group, press STOP");
             return;
         }
@@ -338,6 +418,11 @@ final class MulticlipTarget {
                 }
                 ready = true;
                 targeting = false;
+                if (manualSelection) {
+                    editor.isPinned().set(true);
+                    clip.isPinned().set(true);
+                    fine.isPinned().set(true);
+                }
                 // Direct navigation may pin the clips to protect the requested scene
                 // from unrelated editor focus changes. Retargeting explicitly unpins them.
                 // Read the fresh grid only after both cursors and key windows have settled.

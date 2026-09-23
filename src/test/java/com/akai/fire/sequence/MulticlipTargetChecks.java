@@ -29,7 +29,8 @@ public final class MulticlipTargetChecks {
             String op = method.getName();
             if (op.equals("scheduleTask")) { tasks.add((Runnable) args[0]); return null; }
             if (op.equals("addValueObserver") && args[0] instanceof com.bitwig.extension.callback.BooleanValueChangedCallback observer) { observers.add(observer); return null; }
-            if (op.equals("set")) { value = args[0]; return null; }
+            if (op.equals("set")) { value = args[0]; calls.add(name + ".set=" + args[0]); return null; }
+            if (op.equals("selectChannel")) { calls.add(name + ".selectChannel:" + args[0]); return null; }
             if (op.equals("get") && value != null) return value;
             if (op.equals("toString")) return name;
             if (navigableScenes != null && (op.equals("selectNext") || op.equals("selectPrevious") || op.equals("selectFirst"))) {
@@ -49,7 +50,7 @@ public final class MulticlipTargetChecks {
             if (result == int.class) return 0;
             if (result == double.class) return 0.0;
             if (result == String.class) return "";
-            if (op.equals("getItemAt")) result = name.endsWith("createMainTrackBank") ? Track.class : ClipLauncherSlot.class;
+            if (op.equals("getItemAt")) result = (name.endsWith("createMainTrackBank") || name.endsWith("createTrackBank")) ? Track.class : ClipLauncherSlot.class;
             if (result.isInterface()) return node(op + (op.equals("getItemAt") ? args[0] : "")).proxy(result);
             return null;
         }
@@ -88,6 +89,7 @@ public final class MulticlipTargetChecks {
                 group.proxy(CursorTrack.class), editor.proxy(CursorTrack.class),
                 clip.proxy(PinnableCursorClip.class), fine.proxy(PinnableCursorClip.class),
                 () -> cleared[0]++, () -> ready[0]++, () -> {}, note -> {}, text -> {}, text -> {});
+        target.configureManualSelection(false); // legacy follow-editor mode
         target.selectNote(36);
         target.acquireGroup();
         tick(); tick();
@@ -267,6 +269,74 @@ public final class MulticlipTargetChecks {
         previousCalls = calls.size();
         target.followPlayingScene();
         check(calls.size() == previousCalls, "inactive group cannot be retargeted");
-        System.out.println("Multiclip checks passed: mapping, independent cursors, stale edit cancellation, scene clear, missing lanes, pin restore.");
+        // Fixed group pin + manual scene capture, independent of editor selection.
+        target.configureManualSelection(true);
+        target.configureHardPin(1);
+        Api fixed = host.node("createTrackBank").node("getItemAt0");
+        fixed.node("exists").value = true;
+        fixed.node("isGroup").value = true;
+        fixed.node("position").value = 10;
+        clip.navigableScenes = new TreeSet<>(List.of(1, 4, 6));
+        fine.navigableScenes = new TreeSet<>(List.of(1, 4, 6));
+        editor.node("position").value = 12;
+        setClip(clip, 12, 1, true);
+        setClip(fine, 12, 1, true);
+        selected.node("isSelected").publish(true);
+        previousCalls = calls.size();
+        target.acquireGroup();
+        drain();
+        check(target.ready() && target.midiNote() == 37, "fixed group opens initially selected child");
+        check(calls.subList(previousCalls, calls.size()).contains("group.selectChannel:host.createTrackBank.getItemAt0"),
+                "hard pin selects configured project track directly");
+        check(calls.subList(previousCalls, calls.size()).stream().noneMatch(c -> c.equals("group.isPinned.set=false")),
+                "acquiring fixed group never releases rack pin");
+        check(Boolean.TRUE.equals(editor.node("isPinned").value)
+                && Boolean.TRUE.equals(clip.node("isPinned").value) && Boolean.TRUE.equals(fine.node("isPinned").value),
+                "manual selection pins editing track and both clip cursors");
+        next.node("isSelected").publish(true);
+        next.node("isPlaying").publish(true);
+        drain();
+        check(target.ready() && target.midiNote() == 37
+                && (int) clip.node("clipLauncherSlot").node("sceneIndex").value == 1,
+                "scene launch and editor selection cannot change manual scene or lane");
+        previousCalls = calls.size();
+        target.acquireGroup(); // STOP
+        drain();
+        check(target.ready() && target.midiNote() == 37
+                && calls.subList(previousCalls, calls.size()).stream().noneMatch(c -> c.equals("group.isPinned.set=false") || c.startsWith("editor.selectChannel")),
+                "STOP preserves the fixed rack pin and captured clips");
+        target.followPlayingScene(); // no STOP required
+        drain();
+        check(target.ready() && (int) clip.node("clipLauncherSlot").node("sceneIndex").value == 4,
+                "Metronome manually captures playing scene without STOP");
+        earlierScene.node("isPlaying").publish(true);
+        selected.node("isSelected").publish(true);
+        drain();
+        check(target.ready() && (int) clip.node("clipLauncherSlot").node("sceneIndex").value == 4,
+                "subsequent scene and editor selection leave captured scene unchanged");
+        target.selectNote(36);
+        editor.node("position").value = 11;
+        setClip(clip, 11, 4, true);
+        setClip(fine, 11, 4, true);
+        drain();
+        check(target.ready(), "manual lane switch retains captured scene");
+        target.deactivate();
+        check(Boolean.TRUE.equals(group.node("isPinned").value), "hard pin survives leaving drum mode");
+        // Invalid configured track must never fall back to the current editor group.
+        target.configureHardPin(2);
+        target.acquireGroup();
+        drain();
+        check(!target.ready(), "missing hard-pin target cannot silently use another group");
+        Api recoveredGroup = host.node("createTrackBank").node("getItemAt1");
+        recoveredGroup.node("exists").value = true;
+        recoveredGroup.node("isGroup").value = true;
+        recoveredGroup.node("position").value = 20;
+        group.node("position").value = 20;
+        target.followPlayingScene();
+        drain();
+        check(target.ready() && (int) clip.node("clipLauncherSlot").node("sceneIndex").value == 1,
+                "Metronome can acquire configured group and capture scene without a preceding STOP");
+        target.deactivate();
+        System.out.println("Multiclip checks passed: direct scene navigation, hard group pin, manual scene capture, stale edits, missing targets.");
     }
 }

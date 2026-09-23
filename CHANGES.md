@@ -299,3 +299,15 @@ target; unreachable clips time out without editing neighboring clips.
 Regression checks simulate ignored editor selection, independently delayed
 cursor moves, forward/backward refresh, and a missing target. Live Bitwig/Fire
 verification is still required.
+
+Build `0.82-step-index-11` adds **Sequencer → Hard pin group track** (default 1;
+0 uses the selected group). Fixed targets use the top-level track list and are
+selected directly without releasing the rack pin. STOP preserves an established
+hard pin and editing scene. Metronome can acquire the fixed group before capturing
+the playing scene, so STOP is no longer a prerequisite.
+**Child clip selection → Manual (Metronome)** is the default: the editing track
+and both clip cursors are pinned when ready, and editor selection changes are
+ignored. Scene launches leave the captured clips alone until another manual
+selection. **Follow editor selection** preserves the previous optional behavior.
+Checks cover fixed-track acquisition, STOP, manual capture, later scene launches,
+editor changes, lane switching, unavailable targets, and Metronome recovery.

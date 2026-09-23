@@ -2,7 +2,7 @@
 
 A Bitwig Studio drum-sequencer extension for the Akai Fire, based on Eric Ahrens' controller code, with additional work by R. Hawtin and this fork. This README describes the additions and changed controls in this version; [CHANGES.md](CHANGES.md) contains the development history.
 
-Current build: **`0.82-step-index-10`**. Requires **Bitwig controller API 20**. The original single-track workflow remains available, alongside optional child-track clips feeding a group drum rack.
+Current build: **`0.82-step-index-11`**. Requires **Bitwig controller API 20**. The original single-track workflow remains available, alongside optional child-track clips feeding a group drum rack.
 
 ## Differences from Eric's original
 
@@ -40,7 +40,7 @@ Current build: **`0.82-step-index-10`**. Requires **Bitwig controller API 20**. 
 | Pattern/Metronome button | Follow the playing child scene for editing (group-child mode). |
 | Shift + Pattern/Metronome | Toggle **clip-launcher automation write**. This is no longer a metronome toggle. |
 | STOP, selected-track mode | Toggle track pinning. |
-| STOP, group-child mode | Reacquire the group from Bitwig's current selection. |
+| STOP, group-child mode | Keep the configured hard pin; with hard pin `0`, reacquire the selected group. |
 | Shift + drum pad / clip pad | Cycle its colour through the predefined palette. |
 | Shift + double clip length using Last Step | Duplicate the clip content as its length doubles. |
 | Shift + knob-mode button | Toggle the current encoder mode's alternate bank, where available. |
@@ -83,14 +83,14 @@ Fine mapping/nudging requires a loop of at most **64 beats**, with loop start an
 2. Add up to **16 direct child note tracks**.
 3. Route each child's **note output** to the group instrument. Audio output to the group alone is insufficient.
 4. Put the related child patterns in the same launcher scene. Keep the group's own launcher slots empty for this workflow.
-5. Select the group or a direct child/child clip in Bitwig.
+5. Set **Sequencer → Hard pin group track (0 = selected group)** to the group’s track number. The default is **1**. Numbering uses the top-level track list (nested children do not count). Use `0` to acquire the group from Bitwig selection instead.
 6. Set **Sequencer → Clip source (reload extension) → Group child tracks** in the Fire controller settings, then restart Bitwig.
 
-The group does **not** need a `PolySeq` name. This implementation uses selection; Oikontrol's named-group discovery is not implemented here. Tracks and routing must already exist; the extension does not create or route child tracks.
+The group does **not** need a `PolySeq` name. This implementation uses the configured track number or selection; Oikontrol's named-group discovery is not implemented here. Tracks and routing must already exist; the extension does not create or route child tracks.
 
 The first 16 child positions map to drum notes **36–51**, with newly inserted notes using MIDI channels **1–16**, respectively. Ensure the receiving instrument accepts those channels. The group master and effect tracks are excluded from the child bank. Audio tracks and nested groups cannot be edited as lanes but still occupy their main-child position, so use direct note tracks for predictable pad mapping.
 
-The group stays pinned for drum-pad/device controls while a separate cursor edits the selected child's clip. Each child can have its own loop length. At startup, selection prefers a selected populated child clip, then a playing clip, then a populated slot. Selecting a different child clip in Bitwig updates the Fire lane and scene.
+The group stays pinned for drum-pad/device controls while a separate cursor edits the selected child's clip. Each child can have its own loop length. At startup, selection prefers a selected populated child clip, then a playing clip, then a populated slot. **Sequencer → Child clip selection → Manual (Metronome)** is the default. The editing track and clips stay pinned: launching another scene or selecting clips in Bitwig does not change the Fire’s captured scene. Use **Follow editor selection** to restore selection following.
 
 Press a step in an empty child slot to create a four-beat clip and insert a note. Switching lanes cancels stale deferred edits. Copies capture note properties before changing cursors, including velocity, duration, chance, recurrence and repeats.
 
@@ -108,7 +108,7 @@ stays unchanged. Discovery covers the current 16-scene child bank. If several
 scenes are playing independently, the latest observed start wins; on initial
 attachment, ties prefer the selected lane. **Shift + Metronome/Pattern** toggles launcher automation write.
 
-Press **STOP** to acquire a different group after selecting it or one of its children. Choose **Selected track** as the clip source to return to the original single-track workflow.
+With a hard pin configured, **STOP** keeps that group pinned and preserves the editing scene. **Metronome** works without pressing STOP first; it acquires the configured group if needed. A missing/non-group target reports an error rather than choosing another track. To change racks, change the hard-pin setting; with `0`, select a group or child in Bitwig and press STOP. Choose **Selected track** as the clip source to return to the original single-track workflow.
 
 ### Child clip launching
 
@@ -181,7 +181,7 @@ python3 scripts/install-extension.py "/path/to/Bitwig Studio/Extensions/FireNudg
 
 It validates the archive and replaces it atomically. **Save the project and fully quit/reopen Bitwig after installing.** Restarting only the controller can retain cached code. Avoid overwriting a loaded archive with a direct copy; this previously caused class-loading errors. `mvn install` no longer deploys into Bitwig's Extensions folder.
 
-In the Fire controller settings, **About → Loaded build** shows the running version. Clicking it prints the version to Bitwig's controller console; the console also prints it at initialization. The current expected build is `0.82-step-index-10`.
+In the Fire controller settings, **About → Loaded build** shows the running version. Clicking it prints the version to Bitwig's controller console; the console also prints it at initialization. The current expected build is `0.82-step-index-11`.
 
 `FireNudger.log` in the Bitwig Extensions folder records startup, group/child selection, note-to-pad mappings and nudge diagnostics. Automated checks cover Euclidean ownership, velocity groove, delayed observations, collisions, loop/page seams, channel isolation and copy snapshots. Hardware testing is still needed when changing controller behaviour.
 

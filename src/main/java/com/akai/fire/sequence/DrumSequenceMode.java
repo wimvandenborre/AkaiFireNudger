@@ -127,6 +127,7 @@ public class DrumSequenceMode extends Layer {
                     oled.clearScreenDelayed();
                 },
                 driver.getDiagnosticLog()::log) : null;
+        if (multiclip != null) multiclip.initPreferences(host.getPreferences());
 
         cursorClip.addNoteStepObserver(this::handleNoteStep);
         fineNudge.clip().addNoteStepObserver(this::handleFineNoteStep);
