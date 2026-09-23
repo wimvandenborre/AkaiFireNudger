@@ -222,3 +222,12 @@ fine notes after one second. Context changes discard pending identities.
 fine-note-to-pad mapping for live troubleshooting. Regression tests now include
 partial move observations, mutable old note proxies, and release/reverse nudges
 without duplicate notes. Live hardware verification is still required.
+
+### Verifiable runtime build
+
+The extension version and startup notification now show `0.82-step-index-1`;
+`EXTENSION_INIT` logs the same identifier. A controller restart was observed
+running without the newly installed mapping diagnostics, so installation now
+instructs a full Bitwig restart after saving the project. Confirm the identifier
+before judging the new note-index behavior. Atomic replacement keeps the old
+loaded archive intact; it does not force Bitwig to create a new class loader.

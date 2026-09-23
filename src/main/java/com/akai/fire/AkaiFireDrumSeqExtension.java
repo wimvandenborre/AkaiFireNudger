@@ -72,7 +72,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
     public void init() {
         host = getHost();
         diagnosticLog = new DiagnosticLog(host);
-        diagnosticLog.log("EXTENSION_INIT");
+        diagnosticLog.log("EXTENSION_INIT build=" + AkaiFireDrumSeqDefinition.BUILD_ID);
         Arrays.fill(lastCcValue, -1);
 
         MainCursor mainCursor = new MainCursor(host, 0, 0);
@@ -104,7 +104,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         mainLayer.activate();
         drumSequenceMode.activate();
         host.scheduleTask(this::handlePing, 100);
-        getHost().showPopupNotification("Init Akai Fire: Drum Sequencer");
+        getHost().showPopupNotification("FireNudger " + AkaiFireDrumSeqDefinition.BUILD_ID);
 
     }
 

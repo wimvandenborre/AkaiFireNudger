@@ -30,7 +30,7 @@ def install(source, destination):
         staged.chmod(0o644)
         os.replace(staged, destination)
         print("Installed atomically:", destination)
-        print("Reload the Fire controller extension in Bitwig to use this build.")
+        print("Save your project and fully restart Bitwig to load this build; controller Restart may reuse cached code.")
     finally:
         if staged is not None and staged.exists():
             staged.unlink()
