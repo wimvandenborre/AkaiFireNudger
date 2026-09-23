@@ -248,3 +248,8 @@ retain their existing reset behavior.
 
 Regression coverage generates pulses, nudges in both directions with both scopes,
 reduces pulses to zero, checks manual-note timing, then increases pulses again.
+
+### Unobstructed Fire display (0.82-step-index-4)
+
+Multiclip lane/scene status and target feedback now go to the Bitwig controller
+console instead of drawing an overlay on the Fire OLED.
