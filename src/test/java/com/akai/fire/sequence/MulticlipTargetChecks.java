@@ -13,6 +13,11 @@ public final class MulticlipTargetChecks {
         final String name;
         final Map<String, Api> children = new HashMap<>();
         Object value;
+        NavigableSet<Integer> navigableScenes;
+        int navigationDelay;
+        void afterTicks(int delay, Runnable action) {
+            tasks.add(() -> { if (delay == 0) action.run(); else afterTicks(delay - 1, action); });
+        }
         final List<com.bitwig.extension.callback.BooleanValueChangedCallback> observers = new ArrayList<>();
         void publish(boolean next) { value = next; observers.forEach(observer -> observer.valueChanged(next)); }
         Api(String name) { this.name = name; }
@@ -27,6 +32,17 @@ public final class MulticlipTargetChecks {
             if (op.equals("set")) { value = args[0]; return null; }
             if (op.equals("get") && value != null) return value;
             if (op.equals("toString")) return name;
+            if (navigableScenes != null && (op.equals("selectNext") || op.equals("selectPrevious") || op.equals("selectFirst"))) {
+                calls.add(name + "." + op);
+                int current = (int) node("clipLauncherSlot").node("sceneIndex").value;
+                Integer next = op.equals("selectFirst") ? navigableScenes.first()
+                        : op.equals("selectNext") ? navigableScenes.higher(current) : navigableScenes.lower(current);
+                if (next != null) afterTicks(navigationDelay, () -> {
+                    node("clipLauncherSlot").node("sceneIndex").value = next;
+                    node("exists").value = true;
+                });
+                return null;
+            }
             Class<?> result = method.getReturnType();
             if (result == void.class) { calls.add(name + "." + op); return null; }
             if (result == boolean.class) return false;
@@ -200,6 +216,53 @@ public final class MulticlipTargetChecks {
         int previousCalls = calls.size();
         target.followPlayingScene();
         check(target.ready() && calls.size() == previousCalls, "no playing clip leaves selection untouched");
+        // Reproduce the real failure: select()/showInEditor()/selectSlot() do nothing,
+        // while the clip cursor's own navigation works and skips empty scenes.
+        clip.navigableScenes = new TreeSet<>(List.of(1, 4, 6));
+        fine.navigableScenes = new TreeSet<>(List.of(1, 4, 6));
+        clip.navigationDelay = 2;
+        fine.navigationDelay = 5;
+        Api earlierScene = group.node("createMainTrackBank").node("getItemAt0")
+                .node("clipLauncherSlotBank").node("getItemAt1");
+        earlierScene.node("isPlaying").publish(true);
+        long previousMoves = calls.stream().filter(c -> c.endsWith(".selectPrevious")).count();
+        target.followPlayingScene();
+        target.whenReady(() -> edited[0]++);
+        int beforeEdits = edited[0];
+        tick(); tick();
+        check(!target.ready() && edited[0] == beforeEdits, "cursor navigation blocks edits on the previous scene");
+        drain();
+        check(target.ready() && edited[0] == beforeEdits + 1,
+                "direct cursor navigation recovers when editor selection is ignored");
+        check((int) clip.node("clipLauncherSlot").node("sceneIndex").value == 1
+                && (int) fine.node("clipLauncherSlot").node("sceneIndex").value == 1,
+                "both independently delayed cursors reach the exact requested scene");
+        check(calls.stream().filter(c -> c.endsWith(".selectPrevious")).count() == previousMoves + 4,
+                "no repeated moves while acknowledgement is delayed; empty scenes are skipped");
+        long nextMoves = calls.stream().filter(c -> c.endsWith(".selectNext")).count();
+        playingScene.node("isPlaying").publish(true);
+        target.followPlayingScene();
+        drain();
+        check(target.ready() && (int) clip.node("clipLauncherSlot").node("sceneIndex").value == 6
+                && (int) fine.node("clipLauncherSlot").node("sceneIndex").value == 6,
+                "refresh navigates forward to newly playing scene without selecting in the editor");
+        check(calls.stream().filter(c -> c.endsWith(".selectNext")).count() == nextMoves + 4,
+                "forward navigation also waits for acknowledgement");
+        check(Boolean.TRUE.equals(group.node("isPinned").value), "scene refresh keeps rack pinned");
+        check(calls.stream().filter(c -> c.endsWith(".launch") || c.endsWith(".createEmptyClip")).count() == launchOrCreate,
+                "direct refresh never launches or creates clips");
+        // A deleted/unreachable target must never expose either neighboring clip for editing.
+        clip.navigableScenes = new TreeSet<>(List.of(1, 6));
+        fine.navigableScenes = new TreeSet<>(List.of(1, 6));
+        next.node("isPlaying").publish(true); // scene 4, absent from actual cursor navigation
+        long movesBeforeMissing = calls.stream().filter(c -> c.endsWith(".selectPrevious") || c.endsWith(".selectNext")).count();
+        target.followPlayingScene();
+        beforeEdits = edited[0];
+        target.whenReady(() -> edited[0]++);
+        drain();
+        check(!target.ready() && edited[0] == beforeEdits, "unreachable clip times out without editing neighbors");
+        check(calls.stream().filter(c -> c.endsWith(".selectPrevious") || c.endsWith(".selectNext")).count() == movesBeforeMissing + 2,
+                "navigation stops if missing target is skipped, without bouncing between neighbors");
         target.deactivate();
         previousCalls = calls.size();
         target.followPlayingScene();

@@ -28,6 +28,8 @@ final class MulticlipTarget {
     private boolean targeting;
     private boolean targetOpened;
     private boolean expectContent;
+    private final ClipSceneSeek coarseSeek = new ClipSceneSeek();
+    private final ClipSceneSeek fineSeek = new ClipSceneSeek();
     private boolean previousPin;
     private int groupPosition = -1;
     private int lane = -1;
@@ -159,7 +161,7 @@ final class MulticlipTarget {
     }
 
     private void observeSelection(int child, int index, boolean selected) {
-        if (!active || !selected || !eligible(child) || (child == lane && index == scene)) return;
+        if (!active || targeting || !selected || !eligible(child) || (child == lane && index == scene)) return;
         long ticket = ++selectionGeneration;
         host.scheduleTask(() -> {
             if (ticket != selectionGeneration || !active || !eligible(child)
@@ -258,6 +260,8 @@ final class MulticlipTarget {
         }
         targeting = true;
         targetOpened = false;
+        coarseSeek.reset();
+        fineSeek.reset();
         diagnostic.accept("MULTICLIP_TARGET lane=" + lane + " scene=" + scene
                 + " child=" + children.getItemAt(lane).name().get()
                 + " position=" + children.getItemAt(lane).position().get()
@@ -287,15 +291,26 @@ final class MulticlipTarget {
             if (!active || ticket != generation) return;
             if (!eligible(lane)) { fail("Child track unavailable"); return; }
             if (!targetOpened || !matches()) {
-                // Unpin and track changes are asynchronous. A slot selection made before
-                // they settle can be lost, and select() alone need not open the detail editor.
-                if (!editor.isPinned().get() && !clip.isPinned().get() && !fine.isPinned().get()
+                if (!targetOpened) {
+                    // Give the editor selection one chance after the track settles.
+                    if (!editor.isPinned().get() && !clip.isPinned().get() && !fine.isPinned().get()
+                            && editor.position().get() == children.getItemAt(lane).position().get()) {
+                        editor.selectSlot(slot(lane, scene).sceneIndex().get());
+                        slot(lane, scene).select();
+                        slot(lane, scene).showInEditor();
+                        targetOpened = true;
+                    }
+                } else if (slot(lane, scene).hasContent().get()
                         && editor.position().get() == children.getItemAt(lane).position().get()) {
-                    slot(lane, scene).select();
-                    slot(lane, scene).showInEditor();
-                    targetOpened = true;
+                    // UI selection can be ignored by Bitwig. Navigate the actual cursors;
+                    // cursor navigation skips empty slots, so verify the reported scene
+                    // after each move rather than counting selectNext calls as scenes.
+                    int absoluteScene = slot(lane, scene).sceneIndex().get();
+                    int position = children.getItemAt(lane).position().get();
+                    coarseSeek.advance(clip, position, absoluteScene, diagnostic);
+                    fineSeek.advance(fine, position, absoluteScene, diagnostic);
                 }
-                if (attempt < 20) awaitTarget(ticket, attempt + 1);
+                if (attempt < 40) awaitTarget(ticket, attempt + 1);
                 else {
                     diagnostic.accept("MULTICLIP_TIMEOUT editor=" + editor.position().get()
                             + " coarseTrack=" + clip.getTrack().position().get()
@@ -314,11 +329,17 @@ final class MulticlipTarget {
             fine.scrollToKey(FIRST_NOTE + lane);
             onReady.run();
             host.scheduleTask(() -> {
-                if (ticket != generation || !eligible(lane) || !matches()) return;
+                if (ticket != generation || !active) return;
+                if (!eligible(lane)) { fail("Child track unavailable"); return; }
+                if (!matches()) {
+                    if (attempt < 40) awaitTarget(ticket, attempt + 1);
+                    else fail("Clip unavailable; select again");
+                    return;
+                }
                 ready = true;
                 targeting = false;
-                // Like Oiko, keep child clip cursors following selection. Only the rack
-                // cursor is pinned; playing a scene does not itself select its clips.
+                // Direct navigation may pin the clips to protect the requested scene
+                // from unrelated editor focus changes. Retargeting explicitly unpins them.
                 // Read the fresh grid only after both cursors and key windows have settled.
                 Runnable action = pending;
                 pending = null;

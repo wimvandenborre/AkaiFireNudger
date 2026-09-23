@@ -287,3 +287,15 @@ pinned. Playing-scene detection already found the requested scene; the old
 non-following/pinned child cursors could remain on the previous clip. Timeout
 logging now includes all three cursor pin states and the target slot selection.
 This change needs a full Bitwig restart and hardware verification.
+
+Build `0.82-step-index-10` adds direct MIDI cursor navigation to scene refresh.
+Runtime logs confirmed that unpinning and repeatedly selecting/showing the slot
+left both cursors on the old scene. Refresh now requests the absolute slot once,
+then navigates each actual clip cursor if necessary. Navigation waits for each
+observed move, skips empty rows by checking actual scene indices, and blocks
+editing until both track/scene identities match. Directly navigated clips are
+pinned against unrelated editor changes. Stale callbacks are cancelled on a new
+target; unreachable clips time out without editing neighboring clips.
+Regression checks simulate ignored editor selection, independently delayed
+cursor moves, forward/backward refresh, and a missing target. Live Bitwig/Fire
+verification is still required.
