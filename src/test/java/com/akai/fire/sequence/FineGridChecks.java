@@ -41,6 +41,21 @@ public final class FineGridChecks {
     }
 
     public static void main(String[] args) {
+        Fixture async = new Fixture(1, "2:0", "2:16");
+        async.fine.delayMoves = true;
+        check(async.nudge.move(-1, true, x -> async.nudge.logicalStep(x, 0.25, 16) == 1, 0.25) == 1,
+                "begin delayed left nudge");
+        check(slots(async.page(0)).equals(Set.of(0, 1)) && async.page(0).stream().allMatch(n -> n.state() == NoteStep.State.NoteOn),
+                "partial Bitwig frame cannot extinguish held pad");
+        check(!async.nudge.editsReady(0.25), "new press cannot create duplicate during pending nudge");
+        async.fine.hidden.clear();
+        async.fine.delayMoves = false;
+        MulticlipTargetChecks.drain();
+        check(async.nudge.editsReady(0.25), "acknowledged move enables next gesture");
+        async.nudge.resetSelection();
+        check(async.move(1, 1) == 1 && async.fine.notes.equals(Set.of("2:0", "2:16")),
+                "release and reverse nudge returns same note without a split");
+
         Fixture f = new Fixture(1, "2:0", "2:16");
         check(f.move(-1, 1) == 1, "second adjacent note moves earlier");
         check(slots(f.page(0)).equals(Set.of(0, 1)), "both adjacent pads stay lit");

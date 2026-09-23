@@ -10,6 +10,7 @@ public final class FineNudgeControllerChecks {
         final Set<String> notes = new HashSet<>();
         final Set<String> hidden = new HashSet<>();
         final Set<String> edited = new HashSet<>();
+        boolean delayMoves;
         int pitch;
         ClipApi() { super("fine"); }
         String key(int channel, int step) { return channel + ":" + step; }
@@ -34,6 +35,7 @@ public final class FineNudgeControllerChecks {
                     check((int) args[2] == 0, "selected pitch uses relative row zero");
                     check(notes.remove(key(ch, from)), "source exists");
                     check(notes.add(key(ch, from + delta)), "no collision");
+                    if (delayMoves) hidden.add(key(ch, from + delta));
                     return null;
                 default: return super.invoke(proxy, method, args);
             }

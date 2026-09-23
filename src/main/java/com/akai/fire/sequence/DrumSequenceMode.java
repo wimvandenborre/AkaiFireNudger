@@ -260,6 +260,8 @@ public class DrumSequenceMode extends Layer {
         return multiclip == null || multiclip.ready();
     }
 
+    boolean noteEditsReady() { return clipReady() && fineNudge.editsReady(getGridResolution()); }
+
     CursorTrack getEditTrack() { return editTrack; }
     MulticlipTarget getMulticlip() { return multiclip; }
 
@@ -404,12 +406,19 @@ public class DrumSequenceMode extends Layer {
 
     private void handleSeqSelection(final int index, final boolean pressed) {
         if (!clipReady()) return;
+        fineNudge.logPad(index, pressed, getGridResolution(), positionHandler.getStepOffset());
         if (multiclip != null && !cursorClip.exists().get()) {
             if (pressed && !copyHeld.get() && !fixedLengthHeld.get()) {
                 int velocity = accentHandler.velocityForNewStep(index);
                 double duration = positionHandler.getGridResolution() * gatePercent;
                 multiclip.createClip(() -> setLogicalStep(noteChannel(), index, velocity, duration));
             }
+            return;
+        }
+        // An in-flight move is not an empty pad. Ignore new presses until confirmed.
+        if (pressed && cursorClip.exists().get() && !fineNudge.editsReady(getGridResolution())) {
+            oled.paramInfo("Step sync", "Waiting for note update");
+            oled.clearScreenDelayed();
             return;
         }
         fineNudge.resetSelection();
@@ -532,6 +541,7 @@ public class DrumSequenceMode extends Layer {
 
     // Rotate the visible page, leaving notes on other pages intact.
     private void movePatternWhole(final int dir) {
+        if (!fineNudge.editsReady(getGridResolution())) return;
         resetEuclideanPattern();
         final List<NoteSnapshot> notes = getOnNotes().stream().map(NoteSnapshot::capture).toList();
         final int availableSteps = Math.min(32, positionHandler.getAvailableSteps());
@@ -578,7 +588,7 @@ public class DrumSequenceMode extends Layer {
     }
 
     void applyVelocityGroove(final VelocityGroove groove) {
-        if (!clipReady() || !cursorClip.exists().get()) return;
+        if (!clipReady() || !cursorClip.exists().get() || !fineNudge.editsReady(getGridResolution())) return;
         registerModifiedSteps(getHeldNotes());
         int steps = Math.min(32, positionHandler.getAvailableSteps());
         List<NoteStep> notes = getOnNotes();
@@ -653,6 +663,7 @@ public class DrumSequenceMode extends Layer {
             oled.clearScreenDelayed();
             return;
         }
+        if (!fineNudge.editsReady(getGridResolution())) return;
         final int offset = positionHandler.getStepOffset();
         final double resolution = getGridResolution();
         final boolean[] occupied = new boolean[steps];
@@ -818,13 +829,13 @@ public class DrumSequenceMode extends Layer {
     }
 
     List<NoteStep> getHeldNotes() {
-        if (!clipReady()) return List.of();
+        if (!clipReady() || !fineNudge.editsReady(getGridResolution())) return List.of();
         final Set<Integer> held = heldSteps.stream().collect(Collectors.toSet());
         return getOnNotes().stream().filter(note -> held.contains(note.x())).toList();
     }
 
     List<NoteStep> getOnNotes() {
-        if (!clipReady()) return List.of();
+        if (!clipReady() || !fineNudge.editsReady(getGridResolution())) return List.of();
         List<NoteStep> mapped = fineNudge.pageNotes(getGridResolution(), positionHandler.getStepOffset());
         if (mapped != null) return mapped;
         List<NoteStep> notes = new ArrayList<>();

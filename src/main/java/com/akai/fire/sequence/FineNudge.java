@@ -17,7 +17,10 @@ final class FineNudge {
     private boolean settled;
     private boolean positioned;
     private boolean notesDirty = true;
-    private List<NoteStep> observedNotes = List.of();
+    private final LogicalStepIndex noteIndex = new LogicalStepIndex();
+    private long pendingSince;
+    private boolean pollScheduled;
+    private String lastMapping = "";
     private List<NoteStep> mappedNotes = List.of();
     private double mappedResolution = -1;
     private int mappedPage = -1;
@@ -70,12 +73,17 @@ final class FineNudge {
         resetSelection();
         settled = false;
         positioned = false;
+        noteIndex.clear();
+        pendingSince = 0;
+        pollScheduled = false;
         notesDirty = true;
         long ticket = ++generation;
         if (pitch < 0 || pitch > 127) return;
         fine.scrollToKey(pitch);
         fine.scrollToStep((int) Math.round(coarse.getLoopStart().get() / STEP_BEATS));
-        host.scheduleTask(() -> { if (ticket == generation) { settled = true; positioned = true; } }, 100);
+        host.scheduleTask(() -> {
+            if (ticket == generation) { settled = true; positioned = true; notesDirty = true; }
+        }, 100);
     }
 
     private boolean sameClip() {
@@ -114,29 +122,71 @@ final class FineNudge {
                 + (int) Math.round(coarse.getLoopStart().get() / resolution) - pageOffset;
     }
 
+    /** Refresh from a whole fine-cursor snapshot, rather than trusting mutable cached NoteSteps. */
+    private void syncIndex() {
+        if (!notesDirty || !sameClip()) return;
+        Map<LogicalStepIndex.Address, NoteStep> actual = new LinkedHashMap<>();
+        int length = Math.min(WINDOW, (int) Math.round(coarse.getLoopLength().get() / STEP_BEATS));
+        for (int channel = 0; channel < 16; channel++) for (int x = 0; x < length; x++) {
+            NoteStep note = fine.getStep(channel, x, 0);
+            if (note.state() == NoteStep.State.NoteOn) {
+                actual.put(new LogicalStepIndex.Address(channel, x), note);
+            }
+        }
+        if (noteIndex.observe(actual)) pendingSince = 0;
+        else if (System.nanoTime() / 1_000_000 - pendingSince > 1000) {
+            diagnostic.accept("NUDGE_RESYNC actual=" + actual.keySet());
+            noteIndex.resync(actual);
+            pendingSince = 0;
+        }
+        notesDirty = false;
+        mappedResolution = -1;
+    }
+
+    /** Keep projected occupancy visible until Bitwig confirms every changed fine cell. */
+    private void changed() {
+        if (pendingSince == 0) pendingSince = System.nanoTime() / 1_000_000;
+        notesDirty = true;
+        mappedResolution = -1;
+        if (pollScheduled) return;
+        pollScheduled = true;
+        long ticket = generation;
+        host.scheduleTask(() -> {
+            if (ticket != generation) return;
+            pollScheduled = false;
+            notesDirty = true;
+            syncIndex();
+            if (noteIndex.pending()) changed();
+            else pendingSince = 0;
+        }, 30);
+    }
+
+    boolean editsReady(double resolution) {
+        if (!sameClip()) return false;
+        if (!mapsGrid(resolution)) return true; // legacy view for unsupported grid geometry
+        syncIndex();
+        return !noteIndex.pending();
+    }
+
     /** Null means unsupported/unsettled; an empty list means an actually empty page. */
     List<NoteStep> pageNotes(double resolution, int pageOffset) {
         if (!mapsGrid(resolution)) return null;
-        boolean rebuild = notesDirty || mappedResolution != resolution || mappedPage != pageOffset;
-        if (notesDirty) {
+        syncIndex();
+        if (mappedResolution != resolution || mappedPage != pageOffset) {
             List<NoteStep> notes = new ArrayList<>();
-            int length = (int) Math.round(coarse.getLoopLength().get() / STEP_BEATS);
-            for (int channel = 0; channel < 16; channel++) for (int x = 0; x < length; x++) {
-                NoteStep note = fine.getStep(channel, x, 0);
-                if (note.state() == NoteStep.State.NoteOn) notes.add(note);
+            for (LogicalStepIndex.Note note : noteIndex.notes()) {
+                int x = note.address().step();
+                int slot = logicalStep(x, resolution, pageOffset);
+                if (slot >= 0 && slot < 32) {
+                    notes.add(new LogicalNoteStep(note.source(), slot, x, note.address().channel()));
+                }
             }
-            observedNotes = notes;
-            notesDirty = false;
-        }
-        if (rebuild) {
-            List<NoteStep> notes = new ArrayList<>();
-            for (NoteStep note : observedNotes) {
-                int slot = logicalStep(note.x(), resolution, pageOffset);
-                if (slot >= 0 && slot < 32) notes.add(new LogicalNoteStep(note, slot));
-            }
-            mappedNotes = notes;
+            mappedNotes = List.copyOf(notes);
             mappedResolution = resolution;
             mappedPage = pageOffset;
+            String mapping = "pitch=" + pitch + " grid=" + resolution + " page=" + pageOffset + " "
+                    + notes.stream().map(n -> n.channel() + ":" + ((LogicalNoteStep) n).fineStep + "->" + n.x()).toList();
+            if (!mapping.equals(lastMapping)) { diagnostic.accept("STEP_MAP " + mapping); lastMapping = mapping; }
         }
         return mappedNotes;
     }
@@ -148,26 +198,39 @@ final class FineNudge {
     void setStep(int channel, int slot, int velocity, double duration, double resolution, int pageOffset) {
         if (!mapsGrid(resolution)) { coarse.setStep(channel, slot, 0, velocity, duration); return; }
         clearStep(channel, slot, resolution, pageOffset);
-        fine.setStep(channel, anchorStep(slot, resolution, pageOffset), 0, velocity, duration);
-        notesDirty = true;
+        int x = anchorStep(slot, resolution, pageOffset);
+        fine.setStep(channel, x, 0, velocity, duration);
+        noteIndex.put(new LogicalStepIndex.Address(channel, x), fine.getStep(channel, x, 0));
+        changed();
     }
 
     void clearStep(int channel, int slot, double resolution, int pageOffset) {
         List<NoteStep> notes = pageNotes(resolution, pageOffset);
         if (notes == null) { coarse.clearStep(channel, slot, 0); return; }
         for (NoteStep note : notes) if (note.channel() == channel && note.x() == slot) {
-            fine.clearStep(channel, ((LogicalNoteStep) note).source.x(), 0);
+            int x = ((LogicalNoteStep) note).fineStep;
+            fine.clearStep(channel, x, 0);
+            noteIndex.remove(new LogicalStepIndex.Address(channel, x));
         }
         // Clear a just-created grid note even before its NoteOn observer arrives.
-        fine.clearStep(channel, anchorStep(slot, resolution, pageOffset), 0);
-        notesDirty = true;
+        int anchor = anchorStep(slot, resolution, pageOffset);
+        fine.clearStep(channel, anchor, 0);
+        noteIndex.remove(new LogicalStepIndex.Address(channel, anchor));
+        changed();
+    }
+
+    void logPad(int slot, boolean pressed, double resolution, int pageOffset) {
+        List<NoteStep> notes = pageNotes(resolution, pageOffset);
+        diagnostic.accept("STEP_INPUT slot=" + slot + " pressed=" + pressed + " mapped=" + (notes != null)
+                + " pending=" + noteIndex.pending() + " occupants=" + (notes == null ? "coarse" :
+                notes.stream().filter(n -> n.x() == slot).map(n -> n.channel() + ":" + ((LogicalNoteStep) n).fineStep).toList()));
     }
 
     boolean wasLimited() { return limited; }
 
     int move(int direction, boolean heldOnly, IntPredicate include, double resolution) {
         limited = false;
-        if (!settled || !sameClip()) {
+        if (!settled || !editsReady(resolution)) {
             diagnostic.accept("NUDGE_NOT_READY settled=" + settled + " pitch=" + pitch);
             return -1;
         }
@@ -184,8 +247,8 @@ final class FineNudge {
         int observed = 0;
         for (int channel = 0; channel < 16; channel++) {
             Set<Integer> occupied = new HashSet<>();
-            for (int x = 0; x < steps; x++) {
-                if (fine.getStep(channel, x, 0).state() == NoteStep.State.NoteOn) occupied.add(x);
+            for (LogicalStepIndex.Note note : noteIndex.notes()) {
+                if (note.address().channel() == channel) occupied.add(note.address().step());
             }
             observed += occupied.size();
             Set<Integer> selected = heldOnly ? heldTargets.computeIfAbsent(channel, key -> new HashSet<>()) : null;
@@ -196,6 +259,8 @@ final class FineNudge {
             for (Move move : plan(occupied, steps, direction,
                     x -> included.test(x) && withinLimit(x, direction, grid))) {
                 fine.moveStep(channel, move.from(), 0, move.to() - move.from(), 0);
+                noteIndex.move(new LogicalStepIndex.Address(channel, move.from()),
+                        new LogicalStepIndex.Address(channel, move.to()));
                 int offset = gestureOffsets.remove(channel * WINDOW + move.from());
                 gestureOffsets.put(channel * WINDOW + move.to(), offset + Integer.signum(direction));
                 moved++;
@@ -205,12 +270,12 @@ final class FineNudge {
                 }
             }
         }
-        notesDirty = true;
+        changed();
         diagnostic.accept("NUDGE pitch=" + pitch + " direction=" + direction + " observed=" + observed + " moved=" + moved);
         // Avoid applying another move against pre-edit observation data.
         settled = false;
-        long ticket = ++generation;
-        host.scheduleTask(() -> { if (ticket == generation) settled = true; }, 50);
+        long ticket = generation;
+        host.scheduleTask(() -> { if (ticket == generation) { settled = true; notesDirty = true; } }, 50);
         return moved;
     }
 

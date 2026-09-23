@@ -5,12 +5,16 @@ import com.bitwig.extension.controller.api.*;
 /** Logical Fire slot backed by the actual fine-cursor note; setters retain its timing. */
 final class LogicalNoteStep implements NoteStep {
     final NoteStep source;
+    final int fineStep;
+    private final int channel;
     private final int slot;
-    LogicalNoteStep(NoteStep source, int slot) { this.source = source; this.slot = slot; }
+    LogicalNoteStep(NoteStep source, int slot, int fineStep, int channel) {
+        this.source = source; this.slot = slot; this.fineStep = fineStep; this.channel = channel;
+    }
     @Override public int x() { return slot; }
     @Override public int y() { return source.y(); }
-    @Override public int channel() { return source.channel(); }
-    @Override public NoteStep.State state() { return source.state(); }
+    @Override public int channel() { return channel; }
+    @Override public NoteStep.State state() { return NoteStep.State.NoteOn; }
     @Override public double velocity() { return source.velocity(); }
     @Override public void setVelocity(double arg0) { source.setVelocity(arg0); }
     @Override public double releaseVelocity() { return source.releaseVelocity(); }

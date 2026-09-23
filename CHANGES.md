@@ -205,3 +205,20 @@ retain the coarse editing view; fine nudging reports that the grid is unsupporte
 Regression checks cover adjacent early notes, expression/deletion isolation,
 loop/page boundaries, both nudge scopes and Euclidean pulse changes preserving
 original note timing.
+
+### Stable note index during asynchronous updates
+
+The Fire now keeps an explicit logical-note index, with immutable fine
+coordinates and pad occupancy separate from Bitwig's mutable `NoteStep.state()`.
+All fine-grid operations read this index. Moving a note immediately updates its
+indexed position; partial/stale observer frames cannot make its pad empty or
+create a second editable identity. A new step press waits while a move is pending.
+Velocity/Euclidean edits also wait for confirmation.
+
+The index confirms both the removed source and occupied destination before
+accepting further edits. A rejected/unconfirmed edit resynchronizes from actual
+fine notes after one second. Context changes discard pending identities.
+`STEP_MAP`, `STEP_INPUT`, and `NUDGE_RESYNC` diagnostics expose the actual
+fine-note-to-pad mapping for live troubleshooting. Regression tests now include
+partial move observations, mutable old note proxies, and release/reverse nudges
+without duplicate notes. Live hardware verification is still required.

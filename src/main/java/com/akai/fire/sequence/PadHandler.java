@@ -220,7 +220,7 @@ public class PadHandler {
      * @param pad destination pad of copy.
      */
     private void doNotesPadCopy(final PadContainer pad) {
-        if (parent.clipReady() && pad.index != selectedPadIndex) {
+        if (parent.noteEditsReady() && pad.index != selectedPadIndex) {
             final List<NoteStep> notes = parent.getOnNotes();
             parent.registerPendingAction(new NoteAction(selectedPadIndex, pad.index, Type.COPY_PAD, notes));
             if (parent.getMulticlip() == null) cursorClip.scrollToKey(drumScrollOffset + pad.index);
