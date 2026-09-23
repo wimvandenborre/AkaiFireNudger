@@ -156,6 +156,40 @@ public final class MulticlipTargetChecks {
         setClip(fine, 12, 1, true);
         drain();
         check(target.ready() && target.midiNote() == 37, "startup follows playing child when none selected");
+        Api playingScene = group.node("createMainTrackBank").node("getItemAt0")
+                .node("clipLauncherSlotBank").node("getItemAt6");
+        Api emptyScene = group.node("createMainTrackBank").node("getItemAt1")
+                .node("clipLauncherSlotBank").node("getItemAt6");
+        emptyScene.node("hasContent").value = false;
+        playingScene.node("isPlaying").publish(true);
+        check(target.ready() && target.midiNote() == 37 && (int) clip.node("clipLauncherSlot").node("sceneIndex").value == 1,
+                "scene playback alone leaves Fire selection pinned");
+        long launchOrCreate = calls.stream().filter(c -> c.endsWith(".launch") || c.endsWith(".createEmptyClip")).count();
+        target.followPlayingScene();
+        check(!target.ready() && target.midiNote() == 37, "follow retains lane and invalidates old edits");
+        check(calls.contains("group.createMainTrackBank.getItemAt1.clipLauncherSlotBank.getItemAt6.select"),
+                "latest playing scene beats older clip still playing on selected lane");
+        setClip(clip, 12, 6, false);
+        setClip(fine, 12, 6, false);
+        drain();
+        check(target.ready(), "follow can select empty child slot in playing scene");
+        check(calls.stream().filter(c -> c.endsWith(".launch") || c.endsWith(".createEmptyClip")).count() == launchOrCreate,
+                "follow never launches or creates clips");
+        target.selectNote(36);
+        editor.node("position").value = 11;
+        setClip(clip, 11, 6, true);
+        setClip(fine, 11, 6, true);
+        drain();
+        check(target.ready(), "switching drums retains followed scene");
+        playingScene.node("isPlaying").publish(false);
+        selected.node("isPlaying").publish(false);
+        int previousCalls = calls.size();
+        target.followPlayingScene();
+        check(target.ready() && calls.size() == previousCalls, "no playing clip leaves selection untouched");
+        target.deactivate();
+        previousCalls = calls.size();
+        target.followPlayingScene();
+        check(calls.size() == previousCalls, "inactive group cannot be retargeted");
         System.out.println("Multiclip checks passed: mapping, independent cursors, stale edit cancellation, scene clear, missing lanes, pin restore.");
     }
 }

@@ -2,7 +2,7 @@
 
 A Bitwig Studio drum-sequencer extension for the Akai Fire, based on Eric Ahrens' controller code, with additional work by R. Hawtin and this fork. This README describes the additions and changed controls in this version; [CHANGES.md](CHANGES.md) contains the development history.
 
-Current build: **`0.82-step-index-5`**. Requires **Bitwig controller API 20**. The original single-track workflow remains available, alongside optional child-track clips feeding a group drum rack.
+Current build: **`0.82-step-index-6`**. Requires **Bitwig controller API 20**. The original single-track workflow remains available, alongside optional child-track clips feeding a group drum rack.
 
 ## Differences from Eric's original
 
@@ -37,6 +37,7 @@ Current build: **`0.82-step-index-5`**. Requires **Bitwig controller API 20**. T
 | Hold STEP SEQ + turn Select | Adjust the displayed groove field. |
 | NOTE | Toggle record quantization between Off and 1/16. |
 | DRUM | Toggle Bitwig Fill mode. |
+| Shift + Pattern/Metronome | Follow the playing child scene for editing (group-child mode). |
 | Pattern/Metronome button | Toggle **clip-launcher automation write**. This is no longer a metronome toggle. |
 | STOP, selected-track mode | Toggle track pinning. |
 | STOP, group-child mode | Reacquire the group from Bitwig's current selection. |
@@ -92,6 +93,18 @@ The first 16 child positions map to drum notes **36–51**, with newly inserted 
 The group stays pinned for drum-pad/device controls while a separate cursor edits the selected child's clip. Each child can have its own loop length. At startup, selection prefers a selected populated child clip, then a playing clip, then a populated slot. Selecting a different child clip in Bitwig updates the Fire lane and scene.
 
 Press a step in an empty child slot to create a four-beat clip and insert a note. Switching lanes cancels stale deferred edits. Copies capture note properties before changing cursors, including velocity, duration, chance, recurrence and repeats.
+
+Press **Shift + Metronome/Pattern** after launching a scene to move the Fire's
+editing selection to the most recently started scene with a playing eligible
+child clip. The selected drum lane stays the same, even if its slot in that scene
+is empty. Switching drum pads then edits that same scene. The shortcut does not
+launch, create or stop any clips; ordinary scene playback does not automatically
+move the Fire's editing selection. Press after the launch quantization boundary,
+when the new clips are actually playing. With no playing child clip, selection
+stays unchanged. Discovery covers the current 16-scene child bank. If several
+scenes are playing independently, the latest observed start wins; on initial
+attachment, ties prefer the selected lane. The unmodified Metronome/Pattern button
+still toggles launcher automation write.
 
 Press **STOP** to acquire a different group after selecting it or one of its children. Choose **Selected track** as the clip source to return to the original single-track workflow.
 
@@ -166,7 +179,7 @@ python3 scripts/install-extension.py "/path/to/Bitwig Studio/Extensions/FireNudg
 
 It validates the archive and replaces it atomically. **Save the project and fully quit/reopen Bitwig after installing.** Restarting only the controller can retain cached code. Avoid overwriting a loaded archive with a direct copy; this previously caused class-loading errors. `mvn install` no longer deploys into Bitwig's Extensions folder.
 
-In the Fire controller settings, **About → Loaded build** shows the running version. Clicking it prints the version to Bitwig's controller console; the console also prints it at initialization. The current expected build is `0.82-step-index-5`.
+In the Fire controller settings, **About → Loaded build** shows the running version. Clicking it prints the version to Bitwig's controller console; the console also prints it at initialization. The current expected build is `0.82-step-index-6`.
 
 `FireNudger.log` in the Bitwig Extensions folder records startup, group/child selection, note-to-pad mappings and nudge diagnostics. Automated checks cover Euclidean ownership, velocity groove, delayed observations, collisions, loop/page seams, channel isolation and copy snapshots. Hardware testing is still needed when changing controller behaviour.
 

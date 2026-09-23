@@ -32,6 +32,8 @@ final class MulticlipTarget {
     private int lane = -1;
     private int scene;
     private Runnable pending;
+    private final long[] scenePlayOrder = new long[16];
+    private long playOrder;
 
     MulticlipTarget(ControllerHost host, CursorTrack group, CursorTrack editor,
                    PinnableCursorClip clip, PinnableCursorClip fine, Runnable invalidate,
@@ -75,6 +77,9 @@ final class MulticlipTarget {
                 final int childIndex = i;
                 final int sceneIndex = j;
                 slot.isSelected().addValueObserver(selected -> observeSelection(childIndex, sceneIndex, selected));
+                slot.isPlaying().addValueObserver(playing -> {
+                    if (playing && active && eligible(childIndex)) scenePlayOrder[sceneIndex] = ++playOrder;
+                });
             }
         }
         for (PinnableCursorClip view : new PinnableCursorClip[]{clip, fine}) {
@@ -93,6 +98,8 @@ final class MulticlipTarget {
         if (!active) previousPin = group.isPinned().get();
         active = true;
         groupReady = false;
+        java.util.Arrays.fill(scenePlayOrder, 0);
+        playOrder = 0;
         cancel();
         group.isPinned().set(false);
         diagnostic.accept("MULTICLIP_ACQUIRE group=" + group.position().get());
@@ -190,6 +197,36 @@ final class MulticlipTarget {
         if (lane == next && (ready() || targeting)) return;
         lane = next;
         if (groupReady) retarget(null);
+    }
+
+    /** Selection only: use the latest playing scene, preserving the current drum lane. */
+    void followPlayingScene() {
+        if (!active || !eligible(lane)) {
+            feedback.accept("Select group, press STOP");
+            return;
+        }
+        int found = -1;
+        long newest = -1;
+        // Start with this lane for deterministic ties when attaching to an already playing project.
+        for (int offset = 0; offset < LANES; offset++) {
+            int child = (lane + offset) % LANES;
+            if (!eligible(child)) continue;
+            for (int index = 0; index < 16; index++) {
+                ClipLauncherSlot candidate = slot(child, index);
+                if (candidate.hasContent().get() && candidate.isPlaying().get()
+                        && scenePlayOrder[index] > newest) {
+                    found = index;
+                    newest = scenePlayOrder[index];
+                }
+            }
+        }
+        if (found < 0) {
+            feedback.accept("No playing child clip");
+            return;
+        }
+        scene = found;
+        diagnostic.accept("MULTICLIP_FOLLOW_PLAYING lane=" + lane + " scene=" + scene);
+        retarget(null);
     }
 
     void whenReady(Runnable action) {

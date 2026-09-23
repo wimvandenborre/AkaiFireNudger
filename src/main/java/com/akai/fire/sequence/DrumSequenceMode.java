@@ -571,6 +571,16 @@ public class DrumSequenceMode extends Layer {
         return cursorTrack.isPinned().get() ? BiColorLightState.HALF : BiColorLightState.OFF;
     }
 
+    public boolean followPlayingSceneShortcut() {
+        if (!shiftActive.get()) return false;
+        if (multiclip != null) multiclip.followPlayingScene();
+        else {
+            oled.paramInfo("Follow scene", "Group child mode only");
+            oled.clearScreenDelayed();
+        }
+        return true;
+    }
+
     private void handleClipPinning(final boolean pressed) {
         if (pressed) {
             if (multiclip != null) {

@@ -268,6 +268,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         if (!pressed) {
             return;
         }
+        if (drumSequenceMode != null && drumSequenceMode.followPlayingSceneShortcut()) return;
         transport.isClipLauncherAutomationWriteEnabled().toggle();
     }
 

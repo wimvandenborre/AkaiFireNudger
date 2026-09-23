@@ -258,3 +258,12 @@ Build `0.82-step-index-5` refines the display change: normal child selection no
 longer draws the persistent Multiclip lane/scene banner. Multiclip error feedback
 is restored to the Fire display and clears after 1.5 seconds; it is no longer
 redirected to the console.
+
+### Follow playing child scene (0.82-step-index-6)
+
+Shift + Metronome/Pattern selects the latest playing child scene while retaining
+the selected drum lane. It selects empty slots without creating clips, cancels
+stale edits through the normal cursor retargeting path, and leaves selection
+unchanged when no eligible clip is playing. Playback alone still does not move
+the edit cursor. The plain button retains launcher automation write. Playing-scene
+discovery is limited to the observed 16-scene child bank.
