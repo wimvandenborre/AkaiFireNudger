@@ -30,7 +30,20 @@ record NoteSnapshot(
         boolean isRepeatEnabled,
         boolean isMuted) {
     static NoteSnapshot capture(NoteStep note) {
-        return new NoteSnapshot(note.x(), note.channel(), note.velocity(), note.duration(), note.releaseVelocity(), note.velocitySpread(), note.pan(), note.timbre(), note.pressure(), note.gain(), note.transpose(), note.chance(), note.isChanceEnabled(), note.occurrence(), note.isOccurrenceEnabled(), note.recurrenceLength(), note.recurrenceMask(), note.isRecurrenceEnabled(), note.repeatCount(), note.repeatCurve(), note.repeatVelocityEnd(), note.repeatVelocityCurve(), note.isRepeatEnabled(), note.isMuted());
+        return capture(note, note.x());
+    }
+
+    static NoteSnapshot properties(NoteStep note) { return capture(note, 0); }
+
+    private static NoteSnapshot capture(NoteStep note, int x) {
+        return new NoteSnapshot(x, note.channel(), note.velocity(), note.duration(), note.releaseVelocity(), note.velocitySpread(), note.pan(), note.timbre(), note.pressure(), note.gain(), note.transpose(), note.chance(), note.isChanceEnabled(), note.occurrence(), note.isOccurrenceEnabled(), note.recurrenceLength(), note.recurrenceMask(), note.isRecurrenceEnabled(), note.repeatCount(), note.repeatCurve(), note.repeatVelocityEnd(), note.repeatVelocityCurve(), note.isRepeatEnabled(), note.isMuted());
+    }
+
+    NoteSnapshot withVelocity(double value) {
+        return new NoteSnapshot(x, channel, value, duration, releaseVelocity, velocitySpread, pan,
+                timbre, pressure, gain, transpose, chance, isChanceEnabled, occurrence, isOccurrenceEnabled,
+                recurrenceLength, recurrenceMask, isRecurrenceEnabled, repeatCount, repeatCurve,
+                repeatVelocityEnd, repeatVelocityCurve, isRepeatEnabled, isMuted);
     }
 
     void applyTo(NoteStep note) {

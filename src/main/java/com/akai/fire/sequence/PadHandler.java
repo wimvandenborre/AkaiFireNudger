@@ -43,7 +43,7 @@ public class PadHandler {
     private final BooleanValueObject[] playing = new BooleanValueObject[16];
     private final BooleanValueObject notePlayingActive = new BooleanValueObject();
 
-    private final boolean[] drumTracker = new boolean[16];
+    private final DrumPadActivity activity = new DrumPadActivity();
     private final Integer[] notesToDrumTable = new Integer[128];
     private final int[] notesToPadsTable = new int[128];
     private final int[] padNotes = new int[16];
@@ -321,6 +321,7 @@ public class PadHandler {
         noteInput.setKeyTranslationTable(notesToDrumTable);
         drumPadBank.scrollPosition().addValueObserver(offset -> {
             drumScrollOffset = offset;
+            refreshActivity();
             if (parent.getMulticlip() == null) focusOnSelectedPad();
             else syncMulticlipLane(parent.getMulticlip().midiNote());
             applyScale();
@@ -330,27 +331,17 @@ public class PadHandler {
             playing[i].set(false);
         }
         cursorTrack.playingNotes().addValueObserver(this::handleNotes);
+        if(parent.getMulticlip()!=null)parent.getMulticlip().observeActivity((lane,active)->{
+            activity.child(lane,active);refreshActivity();
+        });
     }
 
     private void handleNotes(final PlayingNote[] notes) {
-        if (!parent.isActive()) {
-            return;
-        }
-        for (int i = 0; i < 16; i++) {
-            drumTracker[i] = false;
-        }
-        for (final PlayingNote playingNote : notes) {
-            final int padIndex = notesToPadsTable[playingNote.pitch()];
-            if (padIndex != -1) {
-                playing[padIndex].set(true);
-                drumTracker[padIndex] = true;
-            }
-        }
-        for (int i = 0; i < 16; i++) {
-            if (!drumTracker[i]) {
-                playing[i].set(false);
-            }
-        }
+        activity.rack(notes);refreshActivity();
+    }
+
+    private void refreshActivity() {
+        for(int i=0;i<16;i++)if(playing[i]!=null)playing[i].set(activity.playing(i,drumScrollOffset));
     }
 
     boolean notePlayingEnabled() {

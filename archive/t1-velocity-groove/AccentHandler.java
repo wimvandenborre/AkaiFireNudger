@@ -10,8 +10,10 @@ public class AccentHandler {
 	private final BooleanValueObject accentActive = new BooleanValueObject();
 	private boolean accenButtonHeld = false;
 	private boolean modified = false;
-    private final StepHoldGesture pressGesture = new StepHoldGesture();
 	private final DrumSequenceMode parent;
+	private int velPointer = 0;
+	private VelocityGroove groove = new VelocityGroove();
+	private String grooveContext = "";
 
 	public AccentHandler(final DrumSequenceMode drumSequenceMode) {
 		this.parent = drumSequenceMode;
@@ -48,33 +50,58 @@ public class AccentHandler {
 
 	void handlePressed(final boolean pressed) {
 		if (!pressed) {
-			if (pressGesture.releaseIsTap(0, modified)) {
+			if (!modified) {
 				accentActive.toggle();
 				this.parent.getPadHandler().getNoteRepeaterHandler().setNoteInputVelocity(this.getCurrenVel());
 			}
-            parent.getGrooveControl().visible(false);
 			parent.getOled().clearScreenDelayed();
 			modified = false;
 		} else {
-            pressGesture.press(0);
 			displayAccentInfo();
 		}
 		accenButtonHeld = pressed;
 	}
 
-    private void displayAccentInfo() { parent.getGrooveControl().visible(true); }
-
-    int velocityForNewStep(int step) { return getCurrenVel(); }
-
-    void handleMainEncoder(final int inc) {
-        if (!accenButtonHeld) return;
-        modified = true;
-        parent.getGrooveControl().turn(inc);
+	private void displayAccentInfo() {
+        final VelocityGroove current = currentGroove();
+        final String[] labels = {"Groove shape", "Groove amount"};
+        final String[] values = {VelocityGroove.NAMES[current.shape()], current.amount() + "%"};
+        parent.getOled().paramInfo(labels[velPointer], values[velPointer], "Press Select: next");
     }
 
-    void handeMainEncoderPress(final boolean pressed) {
-        if (!accenButtonHeld || !pressed) return;
-        modified = true;
-        parent.getGrooveControl().press();
+    private VelocityGroove currentGroove() {
+        String context = parent.velocityGrooveContext();
+        if (!context.equals(grooveContext)) {
+            grooveContext = context;
+            groove = new VelocityGroove();
+        }
+        return groove;
     }
+
+    int velocityForNewStep(int step) {
+        return currentGroove().newNote(step, parent.getPositionHandler().getStepOffset() + step, getCurrenVel());
+    }
+
+	void handleMainEncoder(final int inc) {
+		if (!accenButtonHeld) {
+			return;
+		}
+        VelocityGroove current = currentGroove();
+        if (velPointer == 0) current.turnShape(inc);
+        else current.turnAmount(inc);
+        parent.applyVelocityGroove(current);
+        displayAccentInfo();
+		modified = true;
+		this.parent.getPadHandler().getNoteRepeaterHandler().setNoteInputVelocity(this.getCurrenVel());
+	}
+
+	void handeMainEncoderPress(final boolean pressed) {
+		if (!accenButtonHeld || !pressed) {
+			return;
+		}
+		modified = true;
+		velPointer = (velPointer + 1) % 2;
+		displayAccentInfo();
+	}
+
 }

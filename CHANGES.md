@@ -315,3 +315,138 @@ editor changes, lane switching, unavailable targets, and Metronome recovery.
 The user confirmed Metronome works with build `0.82-step-index-11`.
 README now documents both settings and distinguishes the captured editing scene
 from launcher playback, with a scene 2 → scene 5 example.
+
+
+Build `0.83-groove-shapes-1` upgrades compilation/required API to 25, archives the
+T-1-inspired velocity groove outside the source roots, and replaces its STEP SEQ
+page with Groove Shapes. Eight musical templates and six motion generators use
+immutable original positions, rhythmic indexing, explicit phase/base/depth,
+quantization, bias, anchor/off-grid protection, and effective-period validation.
+A reversible session coordinator tests whole-batch validation, delayed own-write
+acknowledgements, conflicts, exact restore, and safe intermediate movement order.
+
+The live adapter uses the existing FineNudge move path and LogicalStepIndex for
+selected child drum clips. Explicit drum-cell mode retains 1/64-beat translations,
+40% pad limits and existing sub-cell residuals without recreating notes or setting
+properties. It requires a single drum pitch per clip and one onset per fine cell;
+API 25 cannot prove arbitrary exact note enumeration. Capture/Preview/Apply and
+restoration use immutable originals, stable session IDs, full-loop fine-cell
+readback and an all-pitch scope check. Selected-note, pre-quantization, playback
+writes and linked-clip writes remain disabled. Existing nudge, Euclidean and
+hard-pin/manual-scene behavior remains covered by regression checks.
+
+
+Build `0.83-groove-shapes-2` replaces the long groove menu with **Groove / Amount**.
+Turning either automatically updates all nonempty MIDI children in the Fire's
+captured scene. The first nonzero amount captures originals; 0% restores them.
+Separate per-child sessions share a private FineNudge worker, with full batch
+preflight, coalescing and scene guards. The worker never selects editor slots or
+launches clips. Background edits mirror into the visible Fire pad index. Changing
+drum lanes retains the baseline; changing the captured scene resets Amount.
+Added batch and worker suites; 15 suites now cover the build. Real Bitwig testing
+is still required for multi-cursor navigation and observer timing.
+
+
+Build `0.83-groove-shapes-3` fixes invalid MIDI SysEx byte `0xB7` from the groove
+page's middle-dot separator. Groove labels now use ASCII, and the shared OLED
+text encoder replaces unsupported Unicode/control characters with `?` before
+20-character fitting. This also protects track/preset names. Regression checks
+validate actual emitted packet bytes, framing and lengths, including Unicode,
+surrogate pairs and unchanged ASCII text.
+
+
+Build `0.83-groove-shapes-4` fixes the runtime blocker confirmed in FireNudger.log:
+all groove attempts were rejected because transport was playing. Drum-cell groove
+now permits playback through the existing FineNudge movement path; recording,
+identity, content and collision checks remain. OLED status wraps across lines and
+reports confirmed note movement counts, including zero changes at fine resolution.
+Adapter and group regression tests cover playback and restoration while playing.
+
+
+Build `0.83-groove-shapes-5` adds **Sequencer → Groove lock**, default On.
+Note additions/removals from pads, Euclidean edits and stable editor observations
+retain the groove. Surviving notes keep their original timing; new notes acquire
+individual baselines; deleted notes never return on zero/reset. Known Fire edits
+cancel obsolete queued moves before reconciliation. The OLED is reduced to groove
+name and percentage; lock stays in settings.
+
+Top-row pads now also listen to each direct child's playingNotes, restoring MIDI
+activity lights with the rack on the group. Group audition remains independent;
+note offs/removal clear child state, and drum-bank offsets map it to visible pads.
+Added lock/Euclidean and activity-light tests; all 18 suites pass. Hardware checks
+remain for live lock timing and child playingNotes feedback.
+
+
+Build `0.83-groove-shapes-6` fixes an unintended Accent toggle when STEP SEQ was
+held to view the groove and released without moving a control. Only a short,
+unmodified tap now toggles Accent; holds and groove adjustments leave it alone.
+Euclidean additions still use the current Normal/Accent velocity, while existing
+notes keep theirs. Regression checks verify Ramp Down and lock reconciliation
+preserve different existing and newly added velocities. No velocity shaping added.
+
+The compact groove display now puts `>` beside the selected shape or amount.
+Pressing Select switches the marker without adding explanatory text.
+
+
+### Logic 16A–E and optional velocity layer
+
+Build `0.84-logic-groove-1` replaces the visible preset list with Logic 16A–E
+(straight, 54%, 58%, 62%, 66%). 16F is omitted by request; the existing 40% pad
+limit remains. Hold STEP SEQ and use Select for Groove/Amount across the captured
+child clips. OLED stays name/percentage with the selected-field marker.
+
+Settings → Groove velocity adds Enable (Off), Amount (0%, −100..100), Min/Max
+(70/120), Phase (0/1) and Reset. The extension's optional strong/weak profile uses
+original rhythmic positions, not note order. Negative amounts invert it. Timing
+and velocity can be used/reset independently. Zero/disable restores original host
+velocity doubles without rounding. New preferences never auto-write on load.
+
+Final timing and velocity targets derive from immutable originals. Host writes
+acknowledge an in-place nudge before setting velocity at the confirmed destination;
+no other property setter is used. Groove Lock preserves surviving original
+velocities, captures new notes, removes deleted notes and adopts independent
+velocity edits. Counts report distinct updated notes rather than double-counting
+timing and velocity operations. Existing timing suites retain their assertions;
+new vector/session/settings tests and actual adapter setter checks cover both
+layers. Real Bitwig validation is still needed for velocity observer readback,
+playback, expression retention and Euclidean editing with both layers active.
+
+
+### Velocity settings activation fix
+
+Build `0.84-logic-groove-2` defaults the controller preset to Logic 16C. Fixes
+velocity staying inactive even with Enable On and a nonzero Amount: Bitwig's
+NumberSetting caches initial defaults and can omit callbacks for unchanged raw
+values. Waiting for all five callbacks therefore blocked the entire configuration
+when, for example, Phase remained 0. The controller now reads interested setting
+values on explicit Groove/Amount adjustment, independent of initial callbacks.
+Subsequent settings edits apply live; startup/restored preferences cannot edit clips.
+Context reset requires a new explicit groove adjustment before applying settings.
+Adds request/settings diagnostics and a regression for missing default callbacks.
+
+
+### Shared display Amount restores timing and velocity
+
+Build `0.84-logic-groove-3` makes the compact Fire percentage a master for timing
+and the optional velocity layer. At 0%, both restore immutable original values;
+intermediate amounts scale the configured signed velocity amount. Velocity
+preferences remain saved. Logic 16A provides velocity-only use with the master
+above zero. No new display controls. Regression tests cover repeated all-child
+master changes and zero after Groove Lock additions/deletions.
+
+
+### Faster Groove Lock updates
+
+Build `0.84-logic-groove-4` prioritizes the selected/edited child. After a local
+note edit, its stable snapshot is reconciled, preflighted and written while the
+shared cursor is still there, before checking unrelated children. Unchanged
+children use one comparison read and do not re-enter a full preflight/write pass.
+Global Groove/Amount/velocity-setting changes still preflight all children before
+writing, and skip the write-pass visit for children with no planned changes.
+
+Fire edit debounce is 150 ms (was 300 ms), idle polling 500 ms (was 2 seconds).
+Changed content still needs two stable reads; every actual write keeps its fresh
+read, recording/context checks and acknowledgement. Pending local work survives
+interruption or temporary blocking. `GrooveLatencyChecks` verifies priority before
+unrelated reads, unchanged-read counts, no-op passes, global preflight, interruption,
+retry and scene-change guards. Live end-to-end latency still depends on Bitwig.

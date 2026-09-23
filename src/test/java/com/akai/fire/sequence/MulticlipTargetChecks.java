@@ -19,16 +19,22 @@ public final class MulticlipTargetChecks {
             tasks.add(() -> { if (delay == 0) action.run(); else afterTicks(delay - 1, action); });
         }
         final List<com.bitwig.extension.callback.BooleanValueChangedCallback> observers = new ArrayList<>();
+        final List<com.bitwig.extension.callback.ObjectValueChangedCallback<PlayingNote[]>> noteObservers = new ArrayList<>();
+        void publishNotes(PlayingNote... notes) {noteObservers.forEach(observer->observer.valueChanged(notes));}
         void publish(boolean next) { value = next; observers.forEach(observer -> observer.valueChanged(next)); }
         Api(String name) { this.name = name; }
         Api node(String key) { return children.computeIfAbsent(key, k -> new Api(name + "." + k)); }
         <T> T proxy(Class<T> type) {
             return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, this));
         }
+        @SuppressWarnings("unchecked")
         public Object invoke(Object proxy, Method method, Object[] args) {
             String op = method.getName();
             if (op.equals("scheduleTask")) { tasks.add((Runnable) args[0]); return null; }
             if (op.equals("addValueObserver") && args[0] instanceof com.bitwig.extension.callback.BooleanValueChangedCallback observer) { observers.add(observer); return null; }
+            if(op.equals("addValueObserver")&&name.endsWith(".playingNotes")) {
+                noteObservers.add((com.bitwig.extension.callback.ObjectValueChangedCallback<PlayingNote[]>)args[0]);return null;
+            }
             if (op.equals("set")) { value = args[0]; calls.add(name + ".set=" + args[0]); return null; }
             if (op.equals("selectChannel")) { calls.add(name + ".selectChannel:" + args[0]); return null; }
             if (op.equals("get") && value != null) return value;
@@ -104,6 +110,15 @@ public final class MulticlipTargetChecks {
         setClip(fine, 11, 0, true);
         drain();
         check(target.ready() && ready[0] == 1, "first lane settled");
+        boolean[] lit=new boolean[16];target.observeActivity((lane,playing)->lit[lane]=playing);
+        Api first=group.node("createMainTrackBank").node("getItemAt0"), second=group.node("createMainTrackBank").node("getItemAt1");
+        first.node("playingNotes").publishNotes(DrumPadActivityChecks.note(60));
+        second.node("playingNotes").publishNotes(DrumPadActivityChecks.note(36));
+        check(lit[0]&&lit[1]&&!lit[2],"direct child MIDI drives lane activity independently of pitch and selected scene");
+        first.node("playingNotes").publishNotes();check(!lit[0]&&lit[1],"one child's note off preserves another child's activity");
+        second.node("exists").publish(false);check(!lit[1],"removed child clears activity");
+        second.node("exists").publish(true);
+
         check(Boolean.FALSE.equals(editor.node("isPinned").value)
                 && Boolean.FALSE.equals(clip.node("isPinned").value)
                 && Boolean.FALSE.equals(fine.node("isPinned").value),

@@ -22,7 +22,7 @@ def install(source, destination):
             os.fsync(output.fileno())
         with zipfile.ZipFile(staged) as archive:
             for required in ("com/akai/fire/sequence/DrumSequenceMode.class",
-                             "com/akai/fire/sequence/VelocityGroove$Sample.class"):
+                             "com/akai/fire/sequence/GrooveSession.class"):
                 archive.getinfo(required)
             bad_entry = archive.testzip()
             if bad_entry is not None:

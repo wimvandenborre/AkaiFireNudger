@@ -41,6 +41,15 @@ final class MulticlipTarget {
     private Runnable pending;
     private final long[] scenePlayOrder = new long[16];
     private long playOrder;
+    private final boolean[] childPlaying=new boolean[LANES];
+    private java.util.function.BiConsumer<Integer,Boolean> activity=(lane,playing)->{};
+
+    void observeActivity(java.util.function.BiConsumer<Integer,Boolean> callback) {
+        activity=callback;publishActivity();
+    }
+    private void publishActivity() {
+        for(int i=0;i<LANES;i++)activity.accept(i,active&&eligible(i)&&childPlaying[i]);
+    }
 
     MulticlipTarget(ControllerHost host, CursorTrack group, CursorTrack editor,
                    PinnableCursorClip clip, PinnableCursorClip fine, Runnable invalidate,
@@ -81,6 +90,12 @@ final class MulticlipTarget {
             track.isGroup().markInterested();
             track.position().markInterested();
             track.name().markInterested();
+            final int activityLane=i;
+            track.playingNotes().addValueObserver(notes->{
+                childPlaying[activityLane]=notes.length>0;publishActivity();
+            });
+            track.exists().addValueObserver(exists->{if(!exists)childPlaying[activityLane]=false;publishActivity();});
+            track.position().addValueObserver(position->{childPlaying[activityLane]=false;publishActivity();});
             for (int j = 0; j < 16; j++) {
                 ClipLauncherSlot slot = track.clipLauncherSlotBank().getItemAt(j);
                 slot.hasContent().markInterested();
@@ -151,6 +166,7 @@ final class MulticlipTarget {
         if (!active) previousPin = group.isPinned().get();
         active = true;
         groupReady = false;
+        publishActivity();
         java.util.Arrays.fill(scenePlayOrder, 0);
         playOrder = 0;
         cancel();
@@ -195,6 +211,7 @@ final class MulticlipTarget {
                 boolean keepScene = manualSelection && groupPosition == group.position().get();
                 groupPosition = group.position().get();
                 groupReady = true;
+                publishActivity();
                 if (!keepScene || !eligible(lane)) chooseInitialClip();
                 diagnostic.accept("MULTICLIP_GROUP position=" + groupPosition + " lane=" + lane + " scene=" + scene);
                 onGroup.run();
@@ -252,6 +269,7 @@ final class MulticlipTarget {
     void deactivate() {
         active = false;
         groupReady = false;
+        publishActivity();
         cancel();
         group.isPinned().set(hardPinTrack > 0 || previousPin);
     }
@@ -265,6 +283,21 @@ final class MulticlipTarget {
 
     boolean ready() {
         return ready && eligible(lane) && matches();
+    }
+
+    record GrooveChild(int lane, Track track, int position, int scene) {}
+
+    String grooveContext() {
+        return active && groupReady && group.exists().get() && group.position().get()==groupPosition
+                ? groupPosition+":"+scene : "";
+    }
+
+    java.util.List<GrooveChild> grooveChildren() {
+        var result=new java.util.ArrayList<GrooveChild>();
+        if(grooveContext().isEmpty())return result;
+        for(int i=0;i<LANES;i++)if(eligible(i)&&slot(i,scene).hasContent().get())
+            result.add(new GrooveChild(i,children.getItemAt(i),children.getItemAt(i).position().get(),slot(i,scene).sceneIndex().get()));
+        return java.util.List.copyOf(result);
     }
 
     private ClipLauncherSlot slot(int index, int sceneIndex) {

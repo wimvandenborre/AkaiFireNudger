@@ -20,6 +20,13 @@ public final class StepHoldGestureChecks {
         gesture.clear();
         check(!gesture.releaseIsTap(0), "release after context switch cannot delete");
         check(!gesture.releaseIsTap(0), "duplicate release cannot delete");
+        gesture.press(0);now[0]+=100;
+        check(gesture.releaseIsTap(0,false),"short STEP SEQ tap still toggles accent");
+        gesture.press(0);now[0]+=300;
+        check(!gesture.releaseIsTap(0,false),"viewing groove without turning encoder must not toggle accent");
+        gesture.press(0);now[0]+=100;
+        check(!gesture.releaseIsTap(0,true),"quick groove adjustment must not toggle accent");
+        check(!gesture.releaseIsTap(0,false),"modified release consumes press");
         System.out.println("Step hold checks passed: tap toggle, long hold preservation, independent pads and cancelled releases.");
     }
     static void check(boolean ok, String text) { if (!ok) throw new AssertionError(text); }

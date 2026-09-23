@@ -76,6 +76,7 @@ public class DrumSequenceMode extends Layer {
     private final double gatePercent = 0.48;
     private boolean markIgnoreOrigLen = false;
     private final AccentHandler accentHandler;
+    private GrooveControl grooveControl;
     private NoteAction pendingAction;
     private NoteSnapshot copyNote = null;
     private int blinkState;
@@ -128,6 +129,11 @@ public class DrumSequenceMode extends Layer {
                 },
                 driver.getDiagnosticLog()::log) : null;
         if (multiclip != null) multiclip.initPreferences(host.getPreferences());
+        grooveControl = new GrooveControl(host, editTrack, cursorClip, this, driver.getDiagnosticLog()::log);
+        grooveControl.initLock();
+        cursorClip.exists().addValueObserver(value -> grooveContextChanged());
+        cursorClip.getTrack().position().addValueObserver(value -> grooveContextChanged());
+        cursorClip.clipLauncherSlot().sceneIndex().addValueObserver(value -> grooveContextChanged());
 
         cursorClip.addNoteStepObserver(this::handleNoteStep);
         fineNudge.clip().addNoteStepObserver(this::handleFineNoteStep);
@@ -212,14 +218,17 @@ public class DrumSequenceMode extends Layer {
     int noteChannel() { return multiclip == null ? 0 : multiclip.midiChannel(); }
 
     void clearNoteRow() {
+        if (grooveControl != null) grooveControl.notesEdited();
         for (int channel = 0; channel < 16; channel++) cursorClip.clearStepsAtY(channel, 0);
     }
 
     void setLogicalStep(int channel, int step, int velocity, double duration) {
+        if (grooveControl != null) grooveControl.notesEdited();
         fineNudge.setStep(channel, step, velocity, duration, getGridResolution(), positionHandler.getStepOffset());
     }
 
     private void clearLogicalStep(int channel, int step) {
+        if (grooveControl != null) grooveControl.notesEdited();
         fineNudge.clearStep(channel, step, getGridResolution(), positionHandler.getStepOffset());
     }
 
@@ -246,7 +255,13 @@ public class DrumSequenceMode extends Layer {
         assignments[step] = chosen;
     }
 
+    FineNudge getFineNudge() { return fineNudge; }
+
+    GrooveControl getGrooveControl() { return grooveControl; }
+    private void grooveContextChanged() { if (grooveControl != null) grooveControl.invalidate(); }
+
     void clearClipContext() {
+        grooveContextChanged();
         resetEuclideanPattern();
         if (recurrenceEditor != null) recurrenceEditor.cancel();
         Arrays.fill(assignments, null);
@@ -595,30 +610,6 @@ public class DrumSequenceMode extends Layer {
         }
     }
 
-    String velocityGrooveContext() {
-        return cursorClip.getTrack().position().get() + ":" + cursorClip.clipLauncherSlot().sceneIndex().get()
-                + ":" + cursorClip.exists().get() + ":" + padHandler.getSelectedNote()
-                + ":" + positionHandler.getStepOffset() + ":" + getGridResolution()
-                + ":" + cursorClip.getLoopStart().get() + ":" + cursorClip.getLoopLength().get();
-    }
-
-    void applyVelocityGroove(final VelocityGroove groove) {
-        if (!clipReady() || !cursorClip.exists().get() || !fineNudge.editsReady(getGridResolution())) return;
-        registerModifiedSteps(getHeldNotes());
-        int steps = Math.min(32, positionHandler.getAvailableSteps());
-        List<NoteStep> notes = getOnNotes();
-        Set<Integer> present = new HashSet<>();
-        for (NoteStep note : notes) {
-            int key = note.channel() * 32 + note.x();
-            present.add(key);
-            note.setVelocity(groove.apply(key, positionHandler.getStepOffset() + note.x(), note.velocity()));
-        }
-        for (int channel = 0; channel < 16; channel++) for (int step = 0; step < steps; step++) {
-            int key = channel * 32 + step;
-            if (!present.contains(key)) groove.remove(key);
-        }
-    }
-
     private void handleMainEncoder(final int inc) {
         if (isShiftHeld()) {
             handleEuclideanEncoder(inc);
@@ -948,6 +939,7 @@ public class DrumSequenceMode extends Layer {
 
     @Override
     protected void onDeactivate() {
+        if (grooveControl != null) grooveControl.deactivate();
         if (multiclip != null) multiclip.deactivate();
         resetEuclideanPattern();
         currentLayer.deactivate();

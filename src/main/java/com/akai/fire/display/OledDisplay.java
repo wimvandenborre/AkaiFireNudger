@@ -251,10 +251,15 @@ public class OledDisplay {
 		if (inGraphicsMode) {
 			clearScreen();
 		}
-		if (placement > 7 || fontSize > 3) {
+		if (placement < 0 || placement > 7 || fontSize < 0 || fontSize > 3) {
 			return;
 		}
-		final String fitText = text.length() > 20 ? text.substring(0, 20) : text;
+		// Fire text commands contain printable 7-bit characters, not UTF-8/Unicode.
+		// Sanitize before truncation; one unsupported code point occupies one cell.
+		final StringBuilder fitted = new StringBuilder(20);
+		text.codePoints().limit(20).forEach(code -> fitted.append(
+				(char) (code >= 32 && code <= 126 ? code : '?')));
+		final String fitText = fitted.toString();
 		final byte[] sysex = new byte[fitText.length() + oledCmd.length + 5];
 		System.arraycopy(oledCmd, 0, sysex, 0, oledCmd.length);
 		sysex[sysex.length - 1] = SE_EN;

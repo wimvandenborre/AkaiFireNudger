@@ -2,7 +2,7 @@
 
 A Bitwig Studio drum-sequencer extension for the Akai Fire, based on Eric Ahrens' controller code, with additional work by R. Hawtin and this fork. This README describes the additions and changed controls in this version; [CHANGES.md](CHANGES.md) contains the development history.
 
-Current build: **`0.82-step-index-11`**. Requires **Bitwig controller API 20**. The original single-track workflow remains available, alongside optional child-track clips feeding a group drum rack.
+Current build: **`0.84-logic-groove-4`**. Requires **Bitwig controller API 25**. The original single-track workflow remains available, alongside optional child-track clips feeding a group drum rack.
 
 ## Differences from Eric's original
 
@@ -12,7 +12,7 @@ Current build: **`0.82-step-index-11`**. Requires **Bitwig controller API 20**. 
 | Microtiming | Selected-pitch, MIDI-channel-aware nudging; held-note or whole-loop scope; ±40% step limits and movement feedback. |
 | Step display and editing | Stable logical pad positions for early/late notes; coordinated fine-cursor edits prevent an early neighbour from being overwritten. |
 | Multi-clip drums | A drum rack on a group can be sequenced from up to 16 direct child tracks, with independent clip lengths and scene selection. |
-| Velocity | Four groove contours, reversible groove amount, configurable normal/accent velocity, and matching note-repeat velocity. |
+| Groove Shapes / velocity | Logic 16A–E timing presets across child drum clips, using the existing fine nudge path. Optional signed velocity shaping lives in Settings; Groove Lock retains both layers after note edits. |
 | Mute/solo | Persistent modes, optional dedicated second row, and state lights/colours. |
 | Encoders | Per-note pitch, additional repeat controls, User 2 remote controls with an alternate bank, and parameter-name feedback. |
 | Other controls | Track pinning, clip-content duplication when doubling length, colour cycling, undo/redo, record quantization, Fill, and launcher automation write. |
@@ -33,7 +33,7 @@ Current build: **`0.82-step-index-11`**. Requires **Bitwig controller API 20**. 
 | Short tap on a step | Add/delete a note. |
 | Hold an existing step for at least 250 ms | Preserve the note on release, even without an edit. |
 | STEP SEQ tap | Toggle Accent. |
-| Hold STEP SEQ + press Select | Switch between groove shape and amount. |
+| Hold STEP SEQ + press Select | Switch between Groove and Amount. |
 | Hold STEP SEQ + turn Select | Adjust the displayed groove field. |
 | NOTE | Toggle record quantization between Off and 1/16. |
 | DRUM | Toggle Bitwig Fill mode. |
@@ -137,19 +137,114 @@ With **Functionalities → Second Row → ClipLaunch-Row**:
 - **Alt + clip pad** launches existing clips in the scene across eligible children and creates four-beat clips in empty slots. Press again to launch newly created empty clips.
 - Copy, Delete/clear, Shift + Delete/remove and Shift/colour apply to the selected child.
 
-Pad mute/solo, remote controls, note repeat, accent, Euclidean sequencing and velocity groove retain their roles. Selecting a child no longer draws a persistent “Multiclip” banner over the normal display. Error feedback is temporary.
+The top-row drum pads show actual MIDI activity from each child track, independently
+of the Fire's captured editing scene. Group/live audition feedback remains active;
+empty group-note updates do not clear child activity.
 
-## Velocity groove and accent
+Pad mute/solo, remote controls, note repeat, accent, Euclidean sequencing retain their roles. Groove Shapes replaces the former velocity-groove page. Selecting a child no longer draws a persistent “Multiclip” banner over the normal display. Error feedback is temporary.
 
-Normal and Accent velocities are independent settings under **General velocity**, each from 1–127 (defaults 100 and 127). Changes also update note-repeat input velocity.
+## Groove Shapes and accent
 
-Hold **STEP SEQ**, press **Select** to choose Groove shape or Groove amount, and turn Select to adjust it. A plain STEP SEQ tap still toggles Accent; editing a groove while held does not toggle Accent on release. Shift + Select retains priority for Euclidean pulses.
+Hold **STEP SEQ** to open the groove page. It has just two controls:
 
-Available shapes: **Agogo, Timbales, Congas and Bongo**. These are approximations reconstructed from Torso's published 16-point illustrations, not extracted T-1 firmware presets. Each repeats every 16 grid steps. Adjustable groove length and interpolation are not implemented.
+- **Groove:** turn Select to choose the preset.
+- **Amount:** press Select to switch to Amount, then turn it from 0–100%.
 
-Amount (0–100%) varies velocities around their original baseline, clamped to MIDI 1–127. It edits the selected drum's current page without changing timing, rests or Euclidean ownership. New Fire/Euclidean notes inherit the active groove. Returning amount to zero restores the current baseline; manual velocity edits establish a new baseline.
+Press Select to switch back. Changes automatically apply across all existing MIDI
+child clips in the **Fire's captured scene**. Empty slots are skipped. No Capture,
+Preview or Apply menu is required. A short STEP SEQ tap still toggles Accent; holding to view the groove does not.
+Shift + Select retains its Euclidean function.
 
-Changing pad, clip, page, grid or loop context starts a fresh groove overlay at zero. Resulting velocities save with the clip; shape, amount and baseline snapshots are temporary.
+The default preset is **Logic 16C (58%)**. Amount starts at **0%**. The first nonzero adjustment automatically captures each
+child's original timing and velocity. Subsequent changes derive from those same
+originals; **display Amount 0% restores both timing and velocity**. Releasing STEP SEQ keeps the applied timing and
+baseline. Choosing another drum lane retains the group groove session. Capturing
+another scene with Metronome starts a new baseline at 0%, leaving the old scene's
+edited notes intact. Launching another scene alone does not change this scope.
+
+Groove edits work during **playback**, through the same in-place movement as manual
+nudging. Recording clips remain protected. Background cursors target the child clips
+without selecting them in the editor or changing the Fire's selected drum lane.
+The Fire display shows only the groove name and percentage; `>` marks the selected control. Status/movement counts
+are logged, and errors appear as Bitwig notifications. Groove-setting changes check
+all children before writing; note-edit lock updates validate the affected child locally; individual moves are acknowledged before continuing. A host failure
+mid-batch can leave a partial result; there is no native atomic multi-clip transaction.
+
+**Settings → Sequencer → Groove lock** defaults to **On**. Added notes inherit the
+current groove/amount, including enabled velocity shaping, without turning the
+groove knob again; deleted notes stay deleted. This includes Fire pad edits, notes drawn manually in Bitwig’s MIDI editor, and
+Euclidean fills, rotations and pulse reductions. Surviving notes retain their
+original timing and velocity baselines, so subsequent adjustments never stack the groove twice.
+At 0%, surviving and newly added notes return to their own original timing and velocity;
+removed notes are never recreated. Velocity stays unchanged unless the optional
+velocity layer is enabled; other note properties remain intact.
+
+Lock watches edits in the captured child clips, including edits made in Bitwig.
+Updates are coalesced. The selected/edited child is checked first and receives its
+update before scanning the remaining children. Unchanged children need only one
+comparison read and skip the additional preflight/write pass. Fire edits wait
+150 ms to settle; background checks run every 500 ms when idle. These are scheduling
+intervals, not a total-latency guarantee: cursor navigation and note acknowledgements
+still take time. Known Fire edits pause queued groove moves first. Recording and genuine
+identity/readback conflicts still block writes. Turning Lock off disables automatic
+note reconciliation; explicit Groove/Amount changes still work against unchanged
+snapshots. The lock switch adds no controls or explanations to the OLED.
+
+Presets: **Logic 16A (straight), 16B (54%), 16C (58%), 16D (62%), 16E (66%)**.
+These are timing templates on a sixteenth-note base, resetting at each child's
+loop. Amount scales the displacement; the percentage in the preset name is its
+full swing ratio. 16F is deliberately omitted to retain our 40% pad limit.
+The previous mathematical/motion shapes remain internal for regression coverage
+but are no longer in the controller's preset selector.
+
+Timing edits use our existing **FineNudge** code: 1/64-beat movement and the 40%
+logical-pad limit. The visible Fire index mirrors background moves, so early notes
+retain their pads. No note recreation or duration changes are used. Tiny amount
+changes can round to zero at this resolution. Full B/C/D/E delays round to
+1/3/4/5 fine steps respectively (1 fine step = 1/64 beat).
+
+**Settings → Groove velocity** contains the optional velocity layer:
+
+| Setting | Default / behavior |
+| --- | --- |
+| Enable | Off. Turning Off restores original velocities while retaining timing and the velocity settings. |
+| Amount | 0%, range −100% to +100%. Zero restores exact original velocities; positive amounts blend toward the strong/weak pattern; negative amounts reverse it. |
+| Min / Max | 70 / 120, each 1–127. Moving one past the other moves its counterpart too. |
+| Phase | 0 or 1; swaps strong/weak positions independently of timing. |
+| Reset | Sets velocity Amount and Phase to zero without changing timing. |
+
+At display Amount 100% and velocity Amount +100%, sixteenth positions alternate
+Max/Min; velocity −100% gives Min/Max. The display percentage scales both layers: for
+example, display 50% with velocity +80% gives an effective velocity blend of +40%.
+Returning the display to 0% restores both originals without changing saved settings.
+The original grid position chooses the accent, so missing notes never shift the
+pattern. At an effective velocity amount of +50%, an original velocity of 100
+aimed at 70 becomes 85.
+This is our optional velocity profile, **not an original Logic velocity curve**
+or exact Ableton emulation. For velocity without timing swing, choose Logic 16A
+and raise the display Amount.
+It shares the same all-child scope and Groove Lock as timing, without adding
+anything to the Fire display. Adjust Groove or Amount once to start the editing
+session; velocity settings then apply live to that session. Initial preference
+loading never writes to clips. Original baselines last for the current
+editing session, not across extension restarts or scene recapture.
+
+Keep one instrument pitch per child clip and at most one onset per
+pitch/channel/fine cell. API 25 cannot distinguish multiple onsets in one fine cell
+or report exact sub-cell starts; in-place translations retain existing residual
+timing. Unsafe overlaps and loop boundaries are rejected. Pre-quantization,
+selected-note-only scope and edits during recording remain disabled.
+See [capabilities](docs/GROOVE_CAPABILITIES.md) and [Bitwig testing](docs/GROOVE_TESTING.md).
+
+The original **Agogo/Timbales/Congas/Bongo velocity groove** and its integration
+are archived in [archive/t1-velocity-groove](archive/t1-velocity-groove/README.md),
+excluded from the build. New notes no longer inherit those contours. Normal and
+Euclidean-created notes start with the current Normal/Accent velocity. Groove Lock
+then applies the optional velocity layer from that original value. Surviving notes
+retain their original velocity baseline; independently edited velocities become
+new per-note baselines during lock reconciliation.
+Accent velocities remain independent **General velocity** settings (1–127;
+defaults 100 and 127), including note-repeat input velocity.
 
 ## Mute, solo and encoder changes
 
@@ -177,6 +272,7 @@ The knob-mode button cycles modes; Shift + knob-mode toggles available alternate
 | Clip-source/layout and normal/accent preferences | Bitwig controller preferences |
 | Logical pad mapping and pending moves | Extension memory; reconstructed from clip notes |
 | Euclidean pulse count and generated-note ownership | Extension memory for the current editing context |
+| Groove velocity controls | Controller preferences (initial load does not edit clips) |
 | Groove shape/amount and baseline snapshots | Extension memory for the current editing context |
 
 The mapping layer is implemented by [LogicalStepIndex.java](src/main/java/com/akai/fire/sequence/LogicalStepIndex.java), [LogicalNoteStep.java](src/main/java/com/akai/fire/sequence/LogicalNoteStep.java) and [FineNudge.java](src/main/java/com/akai/fire/sequence/FineNudge.java). It is not a separate project file or a Bitwig device.
@@ -190,7 +286,7 @@ Use Java 17, Maven and Python 3. With Maven dependencies already cached:
 python3 scripts/install-extension.py
 ```
 
-For a first build, run `mvn package` with dependency access before the offline check script. The script runs 11 regression suites against the packaged JAR and creates `target/FireNudger.bwextension`.
+For a first build, run `mvn package` with dependency access before the offline check script. The script runs 21 regression suites against the packaged JAR and creates `target/FireNudger.bwextension`.
 
 The installer defaults to `~/Documents/Bitwig Studio/Extensions/FireNudger.bwextension`. An optional destination supports other locations:
 
@@ -200,9 +296,9 @@ python3 scripts/install-extension.py "/path/to/Bitwig Studio/Extensions/FireNudg
 
 It validates the archive and replaces it atomically. **Save the project and fully quit/reopen Bitwig after installing.** Restarting only the controller can retain cached code. Avoid overwriting a loaded archive with a direct copy; this previously caused class-loading errors. `mvn install` no longer deploys into Bitwig's Extensions folder.
 
-In the Fire controller settings, **About → Loaded build** shows the running version. Clicking it prints the version to Bitwig's controller console; the console also prints it at initialization. The current expected build is `0.82-step-index-11`.
+In the Fire controller settings, **About → Loaded build** shows the running version. Clicking it prints the version to Bitwig's controller console; the console also prints it at initialization. The current expected build is `0.84-logic-groove-4`.
 
-`FireNudger.log` in the Bitwig Extensions folder records startup, group/child selection, note-to-pad mappings and nudge diagnostics. Automated checks cover Euclidean ownership, velocity groove, delayed observations, collisions, loop/page seams, channel isolation and copy snapshots. Hardware testing is still needed when changing controller behaviour.
+`FireNudger.log` in the Bitwig Extensions folder records startup, group/child selection, note-to-pad mappings and nudge diagnostics. Automated checks cover Groove Shapes fixtures and session safety, Euclidean ownership, delayed observations, collisions, loop/page seams, channel isolation and copy snapshots. Hardware testing is still needed when changing controller behaviour.
 
 ## Credits and scope
 

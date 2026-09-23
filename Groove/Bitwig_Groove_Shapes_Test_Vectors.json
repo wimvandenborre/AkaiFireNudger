@@ -1,0 +1,2459 @@
+{
+  "schemaVersion": 1,
+  "status": "Design fixtures for Codex implementation; not a tested Bitwig extension or API adapter.",
+  "units": {
+    "time": "quarter-note beats",
+    "offsets": "fractions of one base subdivision",
+    "depth": "0..1",
+    "velocity": "opaque fixture scalar; adapter must preserve host representation"
+  },
+  "defaults": {
+    "presetId": "deep_swing_57",
+    "baseDenominator": 16,
+    "clipDepth": 1,
+    "masterDepth": 1,
+    "quantizeAmount": 0,
+    "phaseSlots": 0,
+    "biasInBaseUnits": 0,
+    "loopStartBeats": 0,
+    "loopLengthBeats": 4,
+    "alignmentOffsetBeats": 0,
+    "captureWindowInBaseUnits": 0.25,
+    "includeOffGrid": false,
+    "protectQuarterAnchors": false,
+    "bypass": false
+  },
+  "formula": "target = original + quantizeAmount*(grid-original) + clipDepth*masterDepth*(4/baseDenominator)*(offset[positiveModulo(gridIndex+phaseSlots,N)] + biasInBaseUnits)",
+  "originFormula": "origin = loopStartBeats - alignmentOffsetBeats",
+  "gridIndexRule": "Nearest integer to (original-origin)/baseDuration; exact half-way ties choose the earlier grid point.",
+  "presets": [
+    {
+      "id": "soft_swing_54",
+      "name": "Soft Swing 54",
+      "bank": "groove",
+      "baseDenominatorDefault": 16,
+      "offsetsInBaseUnits": [
+        0,
+        0.08
+      ],
+      "naturalLengthSlots": 2,
+      "protectQuarterAnchorsDefault": false,
+      "provenance": "Original proposed mathematical design; not an extracted factory or hardware groove.",
+      "swingRatioPercent": 54
+    },
+    {
+      "id": "deep_swing_57",
+      "name": "Deep Swing 57",
+      "bank": "groove",
+      "baseDenominatorDefault": 16,
+      "offsetsInBaseUnits": [
+        0,
+        0.14
+      ],
+      "naturalLengthSlots": 2,
+      "protectQuarterAnchorsDefault": false,
+      "provenance": "Original proposed mathematical design; not an extracted factory or hardware groove.",
+      "swingRatioPercent": 57
+    },
+    {
+      "id": "house_swing_60",
+      "name": "House Swing 60",
+      "bank": "groove",
+      "baseDenominatorDefault": 16,
+      "offsetsInBaseUnits": [
+        0,
+        0.2
+      ],
+      "naturalLengthSlots": 2,
+      "protectQuarterAnchorsDefault": false,
+      "provenance": "Original proposed mathematical design; not an extracted factory or hardware groove.",
+      "swingRatioPercent": 60
+    },
+    {
+      "id": "garage_swing_62",
+      "name": "Garage Swing 62",
+      "bank": "groove",
+      "baseDenominatorDefault": 16,
+      "offsetsInBaseUnits": [
+        0,
+        0.24
+      ],
+      "naturalLengthSlots": 2,
+      "protectQuarterAnchorsDefault": false,
+      "provenance": "Original proposed mathematical design; not an extracted factory or hardware groove.",
+      "swingRatioPercent": 62
+    },
+    {
+      "id": "asymmetric_roll",
+      "name": "Asymmetric Roll",
+      "bank": "groove",
+      "baseDenominatorDefault": 16,
+      "offsetsInBaseUnits": [
+        0,
+        0.1,
+        -0.03,
+        0.18
+      ],
+      "naturalLengthSlots": 4,
+      "protectQuarterAnchorsDefault": false,
+      "provenance": "Original proposed mathematical design; not an extracted factory or hardware groove."
+    },
+    {
+      "id": "push_pull",
+      "name": "Push–Pull",
+      "bank": "groove",
+      "baseDenominatorDefault": 16,
+      "offsetsInBaseUnits": [
+        0,
+        0.08,
+        -0.04,
+        0.12,
+        0,
+        0.04,
+        -0.06,
+        0.16
+      ],
+      "naturalLengthSlots": 8,
+      "protectQuarterAnchorsDefault": false,
+      "provenance": "Original proposed mathematical design; not an extracted factory or hardware groove."
+    },
+    {
+      "id": "late_offbeat",
+      "name": "Late Offbeat",
+      "bank": "groove",
+      "baseDenominatorDefault": 16,
+      "offsetsInBaseUnits": [
+        0,
+        0,
+        0.06,
+        0
+      ],
+      "naturalLengthSlots": 4,
+      "protectQuarterAnchorsDefault": false,
+      "provenance": "Original proposed mathematical design; not an extracted factory or hardware groove."
+    },
+    {
+      "id": "anticipation",
+      "name": "Anticipation",
+      "bank": "groove",
+      "baseDenominatorDefault": 16,
+      "offsetsInBaseUnits": [
+        0,
+        0,
+        0,
+        -0.06
+      ],
+      "naturalLengthSlots": 4,
+      "protectQuarterAnchorsDefault": false,
+      "provenance": "Original proposed mathematical design; not an extracted factory or hardware groove."
+    }
+  ],
+  "motionShapeSamples": [
+    {
+      "id": "sine",
+      "cycleSlots": 16,
+      "seed": null,
+      "normalizedSamples": [
+        0.0,
+        0.3826834323650898,
+        0.7071067811865475,
+        0.9238795325112867,
+        1.0,
+        0.9238795325112867,
+        0.7071067811865476,
+        0.3826834323650899,
+        0.0,
+        -0.38268343236508967,
+        -0.7071067811865475,
+        -0.9238795325112865,
+        -1.0,
+        -0.9238795325112866,
+        -0.7071067811865477,
+        -0.3826834323650904
+      ],
+      "motionRangeInBaseUnits": 0.1,
+      "protectQuarterAnchorsDefault": true,
+      "absoluteSampleTolerance": 1e-12
+    },
+    {
+      "id": "triangle",
+      "cycleSlots": 16,
+      "seed": null,
+      "normalizedSamples": [
+        0.0,
+        0.25,
+        0.49999999999999994,
+        0.75,
+        1.0,
+        0.75,
+        0.5000000000000001,
+        0.2500000000000001,
+        0.0,
+        -0.24999999999999994,
+        -0.49999999999999994,
+        -0.7499999999999996,
+        -1.0,
+        -0.7499999999999999,
+        -0.5000000000000001,
+        -0.25000000000000044
+      ],
+      "motionRangeInBaseUnits": 0.1,
+      "protectQuarterAnchorsDefault": true,
+      "absoluteSampleTolerance": 1e-12
+    },
+    {
+      "id": "ramp_up",
+      "cycleSlots": 16,
+      "seed": null,
+      "normalizedSamples": [
+        -1.0,
+        -0.875,
+        -0.75,
+        -0.625,
+        -0.5,
+        -0.375,
+        -0.25,
+        -0.125,
+        0.0,
+        0.125,
+        0.25,
+        0.375,
+        0.5,
+        0.625,
+        0.75,
+        0.875
+      ],
+      "motionRangeInBaseUnits": 0.1,
+      "protectQuarterAnchorsDefault": true,
+      "absoluteSampleTolerance": 1e-12
+    },
+    {
+      "id": "ramp_down",
+      "cycleSlots": 16,
+      "seed": null,
+      "normalizedSamples": [
+        1.0,
+        0.875,
+        0.75,
+        0.625,
+        0.5,
+        0.375,
+        0.25,
+        0.125,
+        0.0,
+        -0.125,
+        -0.25,
+        -0.375,
+        -0.5,
+        -0.625,
+        -0.75,
+        -0.875
+      ],
+      "motionRangeInBaseUnits": 0.1,
+      "protectQuarterAnchorsDefault": true,
+      "absoluteSampleTolerance": 1e-12
+    },
+    {
+      "id": "arch",
+      "cycleSlots": 16,
+      "seed": null,
+      "normalizedSamples": [
+        0.0,
+        0.043227271178699546,
+        0.16543469682057085,
+        0.3454915028125263,
+        0.5522642316338265,
+        0.7499999999999999,
+        0.9045084971874736,
+        0.9890738003669027,
+        0.989073800366903,
+        0.9045084971874738,
+        0.7500000000000001,
+        0.5522642316338271,
+        0.34549150281252644,
+        0.16543469682057077,
+        0.043227271178699546,
+        0.0
+      ],
+      "motionRangeInBaseUnits": 0.1,
+      "protectQuarterAnchorsDefault": true,
+      "absoluteSampleTolerance": 1e-12
+    },
+    {
+      "id": "seeded_random",
+      "cycleSlots": 16,
+      "seed": 0,
+      "normalizedSamples": [
+        -0.15598971889260915,
+        0.3652161511977241,
+        -0.33741413087989536,
+        0.5169489275470722,
+        -0.525379404780776,
+        -0.8296788045739938,
+        0.4216446013705908,
+        -0.7010001399789472,
+        -0.3898198221320798,
+        0.45439106399528484,
+        0.9592223162667877,
+        0.059309990391905876,
+        0.4390408441980931,
+        -0.4585016796967252,
+        -0.44275893257995114,
+        -0.32725664259103515
+      ],
+      "motionRangeInBaseUnits": 0.1,
+      "protectQuarterAnchorsDefault": true,
+      "absoluteSampleTolerance": 1e-12
+    }
+  ],
+  "numericCases": [
+    {
+      "id": "depth_zero_identity",
+      "purpose": "",
+      "settings": {
+        "clipDepth": 0
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 0.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n4",
+          "startBeats": 1.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n5",
+          "startBeats": 1.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n6",
+          "startBeats": 1.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n7",
+          "startBeats": 1.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n8",
+          "startBeats": 2.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n9",
+          "startBeats": 2.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n10",
+          "startBeats": 2.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n11",
+          "startBeats": 2.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n12",
+          "startBeats": 3.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n13",
+          "startBeats": 3.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n14",
+          "startBeats": 3.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n15",
+          "startBeats": 3.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.0,
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        1.75,
+        2.0,
+        2.25,
+        2.5,
+        2.75,
+        3.0,
+        3.25,
+        3.5,
+        3.75
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "swing_54",
+      "purpose": "",
+      "settings": {
+        "presetId": "soft_swing_54"
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 0.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n4",
+          "startBeats": 1.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n5",
+          "startBeats": 1.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n6",
+          "startBeats": 1.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n7",
+          "startBeats": 1.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n8",
+          "startBeats": 2.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n9",
+          "startBeats": 2.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n10",
+          "startBeats": 2.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n11",
+          "startBeats": 2.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n12",
+          "startBeats": 3.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n13",
+          "startBeats": 3.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n14",
+          "startBeats": 3.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n15",
+          "startBeats": 3.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0,
+        0.27,
+        0.5,
+        0.77,
+        1,
+        1.27,
+        1.5,
+        1.77,
+        2,
+        2.27,
+        2.5,
+        2.77,
+        3,
+        3.27,
+        3.5,
+        3.77
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "swing_57",
+      "purpose": "",
+      "settings": {},
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 0.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n4",
+          "startBeats": 1.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n5",
+          "startBeats": 1.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n6",
+          "startBeats": 1.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n7",
+          "startBeats": 1.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n8",
+          "startBeats": 2.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n9",
+          "startBeats": 2.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n10",
+          "startBeats": 2.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n11",
+          "startBeats": 2.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n12",
+          "startBeats": 3.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n13",
+          "startBeats": 3.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n14",
+          "startBeats": 3.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n15",
+          "startBeats": 3.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0,
+        0.285,
+        0.5,
+        0.785,
+        1,
+        1.285,
+        1.5,
+        1.785,
+        2,
+        2.285,
+        2.5,
+        2.785,
+        3,
+        3.285,
+        3.5,
+        3.785
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "swing_60",
+      "purpose": "",
+      "settings": {
+        "presetId": "house_swing_60"
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 0.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n4",
+          "startBeats": 1.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n5",
+          "startBeats": 1.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n6",
+          "startBeats": 1.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n7",
+          "startBeats": 1.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n8",
+          "startBeats": 2.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n9",
+          "startBeats": 2.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n10",
+          "startBeats": 2.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n11",
+          "startBeats": 2.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n12",
+          "startBeats": 3.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n13",
+          "startBeats": 3.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n14",
+          "startBeats": 3.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n15",
+          "startBeats": 3.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0,
+        0.3,
+        0.5,
+        0.8,
+        1,
+        1.3,
+        1.5,
+        1.8,
+        2,
+        2.3,
+        2.5,
+        2.8,
+        3,
+        3.3,
+        3.5,
+        3.8
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "swing_62",
+      "purpose": "",
+      "settings": {
+        "presetId": "garage_swing_62"
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 0.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n4",
+          "startBeats": 1.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n5",
+          "startBeats": 1.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n6",
+          "startBeats": 1.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n7",
+          "startBeats": 1.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n8",
+          "startBeats": 2.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n9",
+          "startBeats": 2.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n10",
+          "startBeats": 2.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n11",
+          "startBeats": 2.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n12",
+          "startBeats": 3.0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n13",
+          "startBeats": 3.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n14",
+          "startBeats": 3.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n15",
+          "startBeats": 3.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0,
+        0.31,
+        0.5,
+        0.81,
+        1,
+        1.31,
+        1.5,
+        1.81,
+        2,
+        2.31,
+        2.5,
+        2.81,
+        3,
+        3.31,
+        3.5,
+        3.81
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "half_depth",
+      "purpose": "",
+      "settings": {
+        "clipDepth": 0.5
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.2675,
+        0.7675
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "master_times_clip",
+      "purpose": "",
+      "settings": {
+        "clipDepth": 0.5,
+        "masterDepth": 0.5
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.25875,
+        0.75875
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "asymmetric_one_beat",
+      "purpose": "",
+      "settings": {
+        "presetId": "asymmetric_roll"
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 0.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0,
+        0.275,
+        0.4925,
+        0.795
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "push_pull_two_beats",
+      "purpose": "",
+      "settings": {
+        "presetId": "push_pull"
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 0.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n4",
+          "startBeats": 1,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n5",
+          "startBeats": 1.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n6",
+          "startBeats": 1.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n7",
+          "startBeats": 1.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0,
+        0.27,
+        0.49,
+        0.78,
+        1,
+        1.26,
+        1.485,
+        1.79
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "late_offbeat",
+      "purpose": "",
+      "settings": {
+        "presetId": "late_offbeat"
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 1.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 2.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 3.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.515,
+        1.515,
+        2.515,
+        3.515
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "anticipation",
+      "purpose": "",
+      "settings": {
+        "presetId": "anticipation"
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 1.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 2.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 3.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.735,
+        1.735,
+        2.735,
+        3.735
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "sixteenth_swing_keeps_eighth_offbeats",
+      "purpose": "",
+      "settings": {},
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 1.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 2.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 3.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.5,
+        1.5,
+        2.5,
+        3.5
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "sparse_uses_grid_not_note_order",
+      "purpose": "",
+      "settings": {},
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 1.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 2.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n4",
+          "startBeats": 3.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0,
+        0.785,
+        1.5,
+        2.5,
+        3.785
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "original_microtiming_preserved",
+      "purpose": "",
+      "settings": {},
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.27,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.305
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "half_prequantize",
+      "purpose": "",
+      "settings": {
+        "quantizeAmount": 0.5
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.27,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.295
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "full_prequantize",
+      "purpose": "",
+      "settings": {
+        "quantizeAmount": 1
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.27,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.285
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "zero_depth_does_not_disable_quantize",
+      "purpose": "",
+      "settings": {
+        "clipDepth": 0,
+        "quantizeAmount": 0.5
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.27,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.26
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "bypass_disables_everything",
+      "purpose": "",
+      "settings": {
+        "bypass": true,
+        "quantizeAmount": 1,
+        "biasInBaseUnits": 0.05
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.27,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.27
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "positive_phase_advances_slots",
+      "purpose": "",
+      "settings": {
+        "phaseSlots": 1
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 0.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.035,
+        0.25,
+        0.535,
+        0.75
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "negative_phase_positive_modulo",
+      "purpose": "",
+      "settings": {
+        "phaseSlots": -1
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 0.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.035,
+        0.25,
+        0.535,
+        0.75
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "nonzero_loop_start",
+      "purpose": "",
+      "settings": {
+        "loopStartBeats": 8
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 8,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 8.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 8.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 8.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        8,
+        8.285,
+        8.5,
+        8.785
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "explicit_group_alignment_offset",
+      "purpose": "",
+      "settings": {
+        "alignmentOffsetBeats": 0.25
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 0.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.035,
+        0.25,
+        0.535,
+        0.75
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "protected_quarter_anchors",
+      "purpose": "",
+      "settings": {
+        "phaseSlots": 1,
+        "protectQuarterAnchors": true
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 0.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n4",
+          "startBeats": 1,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0,
+        0.25,
+        0.535,
+        0.75,
+        1
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "chord_moves_together",
+      "purpose": "",
+      "settings": {},
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 60,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 64,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 67,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.285,
+        0.285,
+        0.285
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "offgrid_default_preserve",
+      "purpose": "",
+      "settings": {},
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.375,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.375
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "exact_midpoint_tie_is_earlier",
+      "purpose": "",
+      "settings": {
+        "includeOffGrid": true,
+        "quantizeAmount": 1
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.375,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.285
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "constant_bias_scales_with_depth",
+      "purpose": "",
+      "settings": {
+        "biasInBaseUnits": 0.05
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 1,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 3,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        1.0125,
+        3.0125
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "eighth_note_base",
+      "purpose": "",
+      "settings": {
+        "baseDenominator": 8
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 1,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 1.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0,
+        0.57,
+        1,
+        1.57
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "thirtysecond_note_base",
+      "purpose": "",
+      "settings": {
+        "baseDenominator": 32
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.125,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 0.375,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0,
+        0.1425,
+        0.25,
+        0.3925
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "note_list_order_is_irrelevant",
+      "purpose": "",
+      "settings": {},
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.75,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n2",
+          "startBeats": 0.25,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n3",
+          "startBeats": 0.5,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.785,
+        0,
+        0.285,
+        0.5
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "explicit_protection_skips_quantization",
+      "purpose": "",
+      "settings": {
+        "quantizeAmount": 1
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.27,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75,
+          "protected": true
+        }
+      ],
+      "expectedStartBeats": [
+        0.27
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "capture_window_inclusive",
+      "purpose": "",
+      "settings": {},
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.3125,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.3475
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    },
+    {
+      "id": "outside_capture_window_preserved",
+      "purpose": "",
+      "settings": {},
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0.312501,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "expectedStartBeats": [
+        0.312501
+      ],
+      "unchangedFields": [
+        "durationBeats",
+        "pitch",
+        "channel",
+        "velocity"
+      ],
+      "absoluteToleranceBeats": 1e-10
+    }
+  ],
+  "rejectionCases": [
+    {
+      "id": "left_boundary",
+      "settings": {
+        "presetId": "anticipation",
+        "phaseSlots": 3
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "unconstrainedStartBeats": [
+        -0.015
+      ],
+      "expected": "Reject entire target batch before writing; no wrap, clamp, or partial commit."
+    },
+    {
+      "id": "right_boundary",
+      "settings": {
+        "phaseSlots": 1
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 3.98,
+          "durationBeats": 0.1,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "unconstrainedStartBeats": [
+        4.015
+      ],
+      "expected": "Reject entire target batch before writing; no loop extension."
+    },
+    {
+      "id": "new_same_pitch_overlap",
+      "settings": {
+        "customOffsetsInBaseUnits": [
+          0.4,
+          -0.4
+        ]
+      },
+      "notes": [
+        {
+          "id": "n0",
+          "startBeats": 0,
+          "durationBeats": 0.2,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        },
+        {
+          "id": "n1",
+          "startBeats": 0.25,
+          "durationBeats": 0.2,
+          "pitch": 42,
+          "channel": 0,
+          "velocity": 0.75
+        }
+      ],
+      "unconstrainedStartBeats": [
+        0.1,
+        0.15
+      ],
+      "expected": "Reject new same-channel/same-pitch overlap if original notes did not overlap; never shorten durations silently."
+    }
+  ],
+  "loopCompatibilityCases": [
+    {
+      "id": "swing_1bar_and_2bar",
+      "effectivePeriodBeats": 0.5,
+      "loopLengthsBeats": [
+        4,
+        8
+      ],
+      "continuousStaticCompatibility": true
+    },
+    {
+      "id": "two_bar_curve_on_one_bar_clip",
+      "effectivePeriodBeats": 8,
+      "loopLengthsBeats": [
+        4,
+        8
+      ],
+      "continuousStaticCompatibility": false,
+      "clipResetModeAllowed": true
+    },
+    {
+      "id": "odd_length_swing_loop",
+      "effectivePeriodBeats": 0.5,
+      "loopLengthsBeats": [
+        0.75
+      ],
+      "continuousStaticCompatibility": false,
+      "clipResetModeAllowed": true
+    },
+    {
+      "id": "expanded_swing_still_half_beat_period",
+      "declaredCycleSlots": 16,
+      "baseDenominator": 16,
+      "effectivePeriodBeats": 0.5,
+      "loopLengthsBeats": [
+        4
+      ],
+      "continuousStaticCompatibility": true
+    }
+  ],
+  "executionNote": "Numeric examples and sample generation were checked in a standalone mathematical model. Rejection and compatibility entries specify required behavior; no host writes, observer behavior, metadata preservation, persistence, native undo, or live playback were tested."
+}

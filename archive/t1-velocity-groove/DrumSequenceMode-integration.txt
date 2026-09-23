@@ -1,0 +1,23 @@
+    String velocityGrooveContext() {
+        return cursorClip.getTrack().position().get() + ":" + cursorClip.clipLauncherSlot().sceneIndex().get()
+                + ":" + cursorClip.exists().get() + ":" + padHandler.getSelectedNote()
+                + ":" + positionHandler.getStepOffset() + ":" + getGridResolution()
+                + ":" + cursorClip.getLoopStart().get() + ":" + cursorClip.getLoopLength().get();
+    }
+
+    void applyVelocityGroove(final VelocityGroove groove) {
+        if (!clipReady() || !cursorClip.exists().get() || !fineNudge.editsReady(getGridResolution())) return;
+        registerModifiedSteps(getHeldNotes());
+        int steps = Math.min(32, positionHandler.getAvailableSteps());
+        List<NoteStep> notes = getOnNotes();
+        Set<Integer> present = new HashSet<>();
+        for (NoteStep note : notes) {
+            int key = note.channel() * 32 + note.x();
+            present.add(key);
+            note.setVelocity(groove.apply(key, positionHandler.getStepOffset() + note.x(), note.velocity()));
+        }
+        for (int channel = 0; channel < 16; channel++) for (int step = 0; step < steps; step++) {
+            int key = channel * 32 + step;
+            if (!present.contains(key)) groove.remove(key);
+        }
+    }

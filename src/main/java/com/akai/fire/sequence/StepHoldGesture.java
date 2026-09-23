@@ -20,5 +20,10 @@ final class StepHoldGesture {
         return start != null && clock.getAsLong() - start < HOLD_MILLIS;
     }
 
+    boolean releaseIsTap(int step, boolean modified) {
+        boolean tap=releaseIsTap(step); // Always consume the press, including modified gestures.
+        return tap&&!modified;
+    }
+
     void clear() { pressedAt.clear(); }
 }

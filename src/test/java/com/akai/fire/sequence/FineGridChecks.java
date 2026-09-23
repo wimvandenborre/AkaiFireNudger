@@ -97,6 +97,14 @@ public final class FineGridChecks {
         check(euclid.fine.notes.equals(Set.of("2:15", "2:48")), "Euclidean return to zero preserves originals");
 
         generatedNotesRemainOwnedAfterNudging();
+        Fixture mirrored = new Fixture(1,"2:16");
+        mirrored.page(0);
+        mirrored.nudge.mirrorMove(2,16,15,.25,()->{
+            mirrored.fine.notes.remove("2:16");mirrored.fine.notes.add("2:15");mirrored.fine.hidden.add("2:15");
+        });
+        check(slots(mirrored.page(0)).equals(Set.of(1)),"background groove keeps pad lit during partial host frame");
+        mirrored.fine.hidden.clear();MulticlipTargetChecks.drain();
+        check(slots(mirrored.page(0)).equals(Set.of(1)),"background groove confirmation retains fixed pad");
 
         Fixture delayed = new Fixture(1);
         delayed.nudge.setStep(2, 0, 100, 0.125, 0.25, 16);

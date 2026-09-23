@@ -45,10 +45,14 @@ final class FineNudge {
     private static String signed(int value) { return value > 0 ? "+" + value : Integer.toString(value); }
 
     FineNudge(ControllerHost host, CursorTrack track, PinnableCursorClip coarse, Consumer<String> diagnostic) {
+        this(host,track,coarse,diagnostic,"FIRE_FINE");
+    }
+
+    FineNudge(ControllerHost host, CursorTrack track, PinnableCursorClip coarse, Consumer<String> diagnostic, String id) {
         this.host = host;
         this.diagnostic = diagnostic;
         this.coarse = coarse;
-        fine = track.createLauncherCursorClip("FIRE_FINE", "Fire fine timing", WINDOW, 1);
+        fine = track.createLauncherCursorClip(id, "Fire fine timing", WINDOW, 1);
         fine.setStepSize(STEP_BEATS);
         fine.exists().markInterested();
         fine.getTrack().position().markInterested();
@@ -277,6 +281,42 @@ final class FineNudge {
         long ticket = generation;
         host.scheduleTask(() -> { if (ticket == generation) { settled = true; notesDirty = true; } }, 50);
         return moved;
+    }
+
+    int pitch() { return pitch; }
+
+    /** Groove uses the same movement and pending pad-index projection as manual nudge. */
+    void moveAbsolute(int channel, int from, int to, double resolution) {
+        if (!settled || !mapsGrid(resolution) || !editsReady(resolution))
+            throw new IllegalStateException("Fine nudge is not ready");
+        int length = (int)Math.round(coarse.getLoopLength().get()/STEP_BEATS);
+        if (from < 0 || to < 0 || from >= length || to >= length || from == to
+                || fine.getStep(channel, from, 0).state() != NoteStep.State.NoteOn
+                || fine.getStep(channel, to, 0).state() == NoteStep.State.NoteOn)
+            throw new IllegalStateException("Source/destination changed");
+        fine.moveStep(channel, from, 0, to-from, 0);
+        noteIndex.move(new LogicalStepIndex.Address(channel, from), new LogicalStepIndex.Address(channel, to));
+        resetSelection();
+        changed();
+    }
+
+    /** A stable lock read supersedes expectations for notes the user has since added/deleted. */
+    void acceptExternalSnapshot() {
+        noteIndex.clear();pendingSince=0;notesDirty=true;mappedResolution=-1;
+        resetSelection();syncIndex();
+    }
+
+    /** Mirror a private groove worker's edit into the visible Fire cursor's pending index. */
+    void mirrorMove(int channel, int from, int to, double resolution, Runnable write) {
+        boolean mapped=mapsGrid(resolution);
+        if(mapped)syncIndex();
+        var address=new LogicalStepIndex.Address(channel,from);
+        boolean present=mapped && noteIndex.notes().stream().anyMatch(n->n.address().equals(address));
+        write.run();
+        if(present) {
+            noteIndex.move(address,new LogicalStepIndex.Address(channel,to));
+            resetSelection();changed();
+        }
     }
 
     record Move(int from, int to) {}
