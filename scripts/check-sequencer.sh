@@ -2,7 +2,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 mvn -o clean package
-check_classpath="target/classes:target/test-classes:${HOME}/.m2/repository/com/bitwig/extension-api/20/extension-api-20.jar"
+check_classpath="target/yaeltexarpcontrol-0.1.jar:target/test-classes:${HOME}/.m2/repository/com/bitwig/extension-api/20/extension-api-20.jar"
 for check in EuclideanPatternChecks EuclideanRotationChecks VelocityGrooveChecks FineNudgeChecks MulticlipTargetChecks NoteSnapshotChecks StepViewPositionChecks StepHoldGestureChecks FineNudgeControllerChecks; do
     java -cp "$check_classpath" "com.akai.fire.sequence.$check"
 done

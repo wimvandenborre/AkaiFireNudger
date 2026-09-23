@@ -40,27 +40,6 @@
                     <maxmem>1024m</maxmem>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>com.coderplus.maven.plugins</groupId>
-                <artifactId>copy-rename-maven-plugin</artifactId>
-                <version>1.0</version>
-                <executions>
-                    <execution>
-                        <id>rename-file</id>
-                        <phase>install</phase>
-                        <goals>
-                            <goal>copy</goal>
-                        </goals>
-                        <configuration>
-                            <sourceFile>${project.build.directory}/${project.build.finalName}.jar
-                            </sourceFile>
-                            <destinationFile>
-								/Users/wimvandenborre/Documents/Bitwig Studio/Extensions/FireNudger.bwextension
-                            </destinationFile>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
 
         </plugins>
     </build>

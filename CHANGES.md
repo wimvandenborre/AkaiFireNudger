@@ -169,3 +169,16 @@ Verified against the running project after installation: the extension found
 Group 1's Kick Midi child, selected S2 in Scene 2, and reported both cursors ready.
 
 Group child banks exclude the group master, keeping child lane and drum-pad mappings aligned.
+
+### Safe extension installation
+
+Build and check with `./scripts/check-sequencer.sh`, then install with
+`python3 scripts/install-extension.py`. The checks run against the packaged JAR.
+The installer validates the archive and replaces it atomically so Bitwig's open
+archive is never truncated. Reload the Fire controller extension after installing.
+The old direct-copy Maven install hook was removed; `mvn install` no longer
+writes into Bitwig's Extensions folder.
+
+If an earlier direct-copy update caused `NoClassDefFoundError` with an
+`EOFException`, install atomically and reload the extension. If Bitwig retains
+the failed class loader, save the project and restart Bitwig.
