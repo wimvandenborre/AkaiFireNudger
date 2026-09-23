@@ -122,7 +122,10 @@ public class DrumSequenceMode extends Layer {
         fineNudge = new FineNudge(host, editTrack, cursorClip, driver.getDiagnosticLog()::log);
         multiclip = childClips ? new MulticlipTarget(host, cursorTrack, editTrack, cursorClip,
                 fineNudge.clip(), this::clearClipContext, this::positionReady, () -> prepareMulticlipPads(driver),
-                this::syncMulticlipLane, message -> host.println("Multiclip: " + message),
+                this::syncMulticlipLane, message -> {
+                    oled.paramInfo("Multiclip", message);
+                    oled.clearScreenDelayed();
+                },
                 driver.getDiagnosticLog()::log) : null;
 
         cursorClip.addNoteStepObserver(this::handleNoteStep);

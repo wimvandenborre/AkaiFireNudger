@@ -275,7 +275,7 @@ final class MulticlipTarget {
                 pending = null;
                 if (action != null) action.run();
                 diagnostic.accept("MULTICLIP_READY lane=" + lane + " scene=" + scene + " exists=" + clip.exists().get());
-                feedback.accept(children.getItemAt(lane).name().get() + " / " + (scene + 1));
+                // Normal child selection already updates the pad display through onLane.
             }, 50);
         }, 50);
     }

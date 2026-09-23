@@ -253,3 +253,8 @@ reduces pulses to zero, checks manual-note timing, then increases pulses again.
 
 Multiclip lane/scene status and target feedback now go to the Bitwig controller
 console instead of drawing an overlay on the Fire OLED.
+
+Build `0.82-step-index-5` refines the display change: normal child selection no
+longer draws the persistent Multiclip lane/scene banner. Multiclip error feedback
+is restored to the Fire display and clears after 1.5 seconds; it is no longer
+redirected to the console.
