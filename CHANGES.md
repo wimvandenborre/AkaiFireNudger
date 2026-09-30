@@ -52,7 +52,12 @@ existing clip notes remain protected when a fresh overlay starts.
 Settings regression check (after building):
 `java -cp target/classes:target/test-classes:$HOME/.m2/repository/com/bitwig/extension-api/20/extension-api-20.jar com.akai.fire.sequence.EuclideanRotationChecks`.
 
-### Velocity groove
+### Historical velocity groove (removed in 0.83-groove-shapes-1)
+
+This section records the earlier Torso-inspired velocity implementation. It is
+archived and is not the current STEP SEQ groove workflow. The current Logic
+presets and optional velocity layer are described under **Logic 16A–E and
+optional velocity layer** below.
 
 Hold **STEP SEQ**, press **Select** to switch between Groove shape and Groove
 amount; turn Select to edit the displayed field. Normal and Accent velocity are
