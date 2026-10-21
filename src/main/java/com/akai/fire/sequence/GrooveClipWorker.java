@@ -54,8 +54,8 @@ final class GrooveClipWorker {
             if(!selected){clip.selectFirst();await(token,target,attempt+1,true,ready,failed);return;}
             if(!clip.exists().get() || clip.getTrack().position().get()!=target.position()
                     || clip.clipLauncherSlot().sceneIndex().get()!=target.scene()) {
-                seek.advance(clip,target.position(),target.scene(),log);
-                await(token,target,attempt+1,true,ready,failed);return;
+                boolean progressed=seek.advance(clip,target.position(),target.scene(),log);
+                await(token,target,progressed?0:attempt+1,true,ready,failed);return;
             }
             clip.isPinned().set(true);
             nudge.clip().selectClip(clip);nudge.clip().isPinned().set(true);

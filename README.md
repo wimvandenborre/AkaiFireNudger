@@ -2,7 +2,7 @@
 
 A Bitwig Studio drum-sequencer extension for the Akai Fire, based on Eric Ahrens' controller code, with additional work by R. Hawtin and this fork. This README describes the additions and changed controls in this version; [CHANGES.md](CHANGES.md) contains the development history.
 
-Current build: **`0.84-logic-groove-4`**. Requires **Bitwig controller API 25**. The original single-track workflow remains available, alongside optional child-track clips feeding a group drum rack.
+Current build: **`0.86-scene-selection-2`**. Requires **Bitwig controller API 25**. The original single-track workflow remains available, alongside optional child-track clips feeding a group drum rack.
 
 ## Differences from Eric's original
 
@@ -30,6 +30,8 @@ Current build: **`0.84-logic-groove-4`**. Requires **Bitwig controller API 25**.
 | Alt + Bank left/right, no steps held | Nudge the selected drum pitch throughout its clip loop. |
 | Bank left/right alone | Rotate the visible page by one grid step. |
 | Shift + Bank left/right | Undo/redo. |
+| Hold first left button (Select) + top-row pad | Audition the drum without changing the editing lane. |
+| BROWSER | Toggle note repeat; hold a top-row pad to repeat it. |
 | Short tap on a step | Add/delete a note. |
 | Hold an existing step for at least 250 ms | Preserve the note on release, even without an edit. |
 | STEP SEQ tap | Toggle Accent. |
@@ -44,6 +46,8 @@ Current build: **`0.84-logic-groove-4`**. Requires **Bitwig controller API 25**.
 | Shift + drum pad / clip pad | Cycle its colour through the predefined palette. |
 | Shift + double clip length using Last Step | Duplicate the clip content as its length doubles. |
 | Shift + knob-mode button | Toggle the current encoder mode's alternate bank, where available. |
+
+Audition triggers the rack's C1–D♯2 notes directly. In group-child mode it targets the group's master track, independently of the child clip selected for editing. BROWSER repeat uses Bitwig's native arpeggiator and transport clock. It targets the same resolved rack as Select audition, using the group chosen by **Hard pin group track**, independently of the child clip being edited. Fire's native MIDI input must be enabled and routed in Bitwig. It retains the straight/triplet rate selector and fixed Normal/Accent velocity, with 50% gate and no shuffle, humanize or pressure-derived velocity. Release a pad or toggle BROWSER off to stop. Select audition keeps its direct rack trigger. The controller-timer repeat from build 0.85-rack-repeat-5 has been removed.
 
 The first pad row selects drums; the last two rows provide a 32-step sequencer page. Under **Functionalities → Second Row**, choose `Mute-Row` or `ClipLaunch-Row`, then restart the extension/host to apply the layout.
 
@@ -95,8 +99,7 @@ The group stays pinned for drum-pad/device controls while a separate cursor edit
 Press a step in an empty child slot to create a four-beat clip and insert a note. Switching lanes cancels stale deferred edits. Copies capture note properties before changing cursors, including velocity, duration, chance, recurrence and repeats.
 
 Press **Metronome/Pattern** after launching a scene to move the Fire's
-editing selection to the most recently started scene with a playing eligible
-child clip. The selected drum lane stays the same, even if its slot in that scene
+editing selection to a scene with a playing eligible child clip. The selected drum lane stays the same, even if its slot in that scene
 is empty. Switching drum pads then edits that same scene. Refresh requests the
 target slot and directly navigates both MIDI clip cursors if Bitwig leaves them
 on the old clip. Editing resumes only after both cursors confirm the requested
@@ -104,15 +107,33 @@ child track and scene. The group drum rack remains pinned throughout. Refresh do
 launch, create or stop any clips; ordinary scene playback does not automatically
 move the Fire's editing selection. Press after the launch quantization boundary,
 when the new clips are actually playing. With no playing child clip, selection
-stays unchanged. Discovery covers the current 16-scene child bank. If several
-scenes are playing independently, the latest observed start wins; on initial
-attachment, ties prefer the selected lane. **Shift + Metronome/Pattern** toggles launcher automation write.
+stays unchanged. Discovery pages through the project's full scene list using a
+private bank, including scenes after 16. Discovery pages through child clip slots
+so Bitwig's Follow Controller option does not scroll the visible launcher down the
+scene list. Large projects take a short time to scan;
+editing is blocked until the target is verified. If several scenes are playing
+independently, the latest observed start wins; scenes whose start was not observed
+tie at the selected lane, then the earliest scene. Use the manual scene number to
+choose explicitly in an ambiguous mix. **Shift + Metronome/Pattern** toggles launcher automation write.
 
 With a hard pin configured, **STOP** keeps that group pinned and preserves the editing scene. **Metronome** works without pressing STOP first; it acquires the configured group if needed. A missing/non-group target reports an error rather than choosing another track. To change racks, change the hard-pin setting; with `0`, select a group or child in Bitwig and press STOP. Choose **Selected track** as the clip source to return to the original single-track workflow.
 
 ### Manual editing selection and playback
 
-The settings under **Sequencer** control the rack and the clips selected for editing:
+**Clip selection** appears at the top of the Fire controller settings:
+
+| Control | Action |
+| --- | --- |
+| Scene (1-based) | Enter the launcher scene number. Changing this field alone does not move the editing selection. |
+| Select scene clips → Select | Select that scene's child MIDI clips for editing, including stopped scenes and empty slots. The current drum lane is retained; changing pads accesses the other children in this scene. |
+| Follow playing scene → Capture | Same selection-only capture as Metronome, across the full scene list. |
+
+The scene number updates after a successful selection. Neither selection action
+launches, creates, deletes or stops clips. The clip row, when enabled, shows the
+16-scene window containing the captured scene. Native cursor navigation waits for
+progress rather than imposing a 40-poll total limit on long clip lists.
+
+The settings under **Sequencer** control the rack and how the editing selection follows Bitwig:
 
 | Setting | Default | Behaviour |
 | --- | --- | --- |
@@ -286,7 +307,7 @@ Use Java 17, Maven and Python 3. With Maven dependencies already cached:
 python3 scripts/install-extension.py
 ```
 
-For a first build, run `mvn package` with dependency access before the offline check script. The script runs 21 regression suites against the packaged JAR and creates `target/FireNudger.bwextension`.
+For a first build, run `mvn package` with dependency access before the offline check script. The script runs 22 regression suites against the packaged JAR and creates `target/FireNudger.bwextension`.
 
 The installer defaults to `~/Documents/Bitwig Studio/Extensions/FireNudger.bwextension`. An optional destination supports other locations:
 
@@ -296,12 +317,14 @@ python3 scripts/install-extension.py "/path/to/Bitwig Studio/Extensions/FireNudg
 
 It validates the archive and replaces it atomically. **Save the project and fully quit/reopen Bitwig after installing.** Restarting only the controller can retain cached code. Avoid overwriting a loaded archive with a direct copy; this previously caused class-loading errors. `mvn install` no longer deploys into Bitwig's Extensions folder.
 
-In the Fire controller settings, **About → Loaded build** shows the running version. Clicking it prints the version to Bitwig's controller console; the console also prints it at initialization. The current expected build is `0.84-logic-groove-4`.
+In the Fire controller settings, **About → Loaded build** shows the running version. Clicking it prints the version to Bitwig's controller console; the console also prints it at initialization. The current expected build is `0.86-scene-selection-2`.
 
-`FireNudger.log` in the Bitwig Extensions folder records startup, group/child selection, note-to-pad mappings and nudge diagnostics. Automated checks cover Groove Shapes fixtures and session safety, Euclidean ownership, delayed observations, collisions, loop/page seams, channel isolation and copy snapshots. Hardware testing is still needed when changing controller behaviour.
+`FireNudger.log` in the Bitwig Extensions folder records startup, group/child selection, note-to-pad mappings and nudge diagnostics. Automated checks cover Groove Shapes fixtures and session safety, Euclidean ownership, delayed observations, collisions, loop/page seams, channel isolation and copy snapshots. Hardware testing is still needed when changing controller behaviour. **Diagnostics → Test C1 → Trigger rack** plays a short C1 directly on the resolved rack track, independently of the Fire pad gestures. **Diagnostics → Test native repeat C1 → Native repeat** holds C1 in the native arpeggiator for one second, independently of hardware mapping; the diagnostic timer only releases that held note.
 
 ## Credits and scope
 
 Based on Eric Ahrens' MIT-licensed controller work and Bitwig's extension framework, with the existing R. Hawtin customizations and additions in this fork. Multi-clip targeting and fine-cursor nudging were adapted from **Oiko Audio / David Fredman's Oikontrol v2.23.0**. Copyright notices are preserved in [LICENSE](LICENSE).
 
 The separate BitX `()LDR` preset-loading commands are not part of this extension; those changes belong to the BitX project. This repository documents and builds the Akai Fire extension.
+
+Native input diagnostics also provide **Test plain native C1** (arpeggiator bypassed) and **Test native octave 1** to distinguish input routing from arpeggiator generation. Native repeat enters the configured group through its first available MIDI child, using that child’s existing output to the rack, independently of the clip being edited.

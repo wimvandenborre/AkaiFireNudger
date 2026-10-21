@@ -128,7 +128,10 @@ public class DrumSequenceMode extends Layer {
                     oled.clearScreenDelayed();
                 },
                 driver.getDiagnosticLog()::log) : null;
-        if (multiclip != null) multiclip.initPreferences(host.getPreferences());
+        if (multiclip != null) {
+            multiclip.initPreferences(host.getPreferences());
+            multiclip.bindSceneSettings(driver.getSceneSelectionSettings());
+        }
         grooveControl = new GrooveControl(host, editTrack, cursorClip, this, driver.getDiagnosticLog()::log);
         grooveControl.initLock();
         cursorClip.exists().addValueObserver(value -> grooveContextChanged());
@@ -166,6 +169,7 @@ public class DrumSequenceMode extends Layer {
 
         initSequenceSection(driver);
         initModeButtons(driver);
+        selectHeld.addValueObserver(held -> padHandler.applyScale());
         initButtonBehaviour(driver);
         encoderLayer = new SequencEncoderHandler(this, driver, padHandler);
 
@@ -208,6 +212,9 @@ public class DrumSequenceMode extends Layer {
 
     private void prepareMulticlipPads(AkaiFireDrumSeqExtension driver) {
         driver.getViewControl().getDrumPadBank().scrollPosition().set(36);
+        driver.getDiagnosticLog().log("PAD_INPUT_RACK position=" + cursorTrack.position().get()
+                + " name=" + cursorTrack.name().get());
+        padHandler.rackReady();
     }
 
     private void positionReady() {
@@ -934,7 +941,7 @@ public class DrumSequenceMode extends Layer {
         currentLayer = mainLayer;
         mainLayer.activate();
         encoderLayer.activate();
-        padHandler.applyScale();
+        padHandler.activateNoteInput();
     }
 
     @Override
@@ -945,7 +952,7 @@ public class DrumSequenceMode extends Layer {
         currentLayer.deactivate();
         shiftLayer.deactivate();
         encoderLayer.deactivate();
-        padHandler.disableNotePlaying();
+        padHandler.deactivateNoteInput();
     }
 
     public void retrigger() {

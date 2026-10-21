@@ -50,6 +50,10 @@ public final class GrooveWorkerChecks {
         int navigation=calls.size();worker.prepare(target,()->{},failures::add);
         check(calls.size()==navigation,"readback on current target does not navigate again");
         ready[0]=false;
+        var distant=new MulticlipTarget.GrooveChild(2,target.track(),3,70);
+        worker.prepare(distant,()->ready[0]=true,failures::add);drain();
+        check(ready[0]&&failures.isEmpty()&&worker.matches(distant),"groove worker can reach later scenes beyond the old retry count");
+        ready[0]=false;
         worker.prepare(new MulticlipTarget.GrooveChild(2,target.track(),3,7),()->ready[0]=true,failures::add);
         worker.cancel();drain();check(!ready[0],"stale navigation cancelled");
         check(calls.stream().noneMatch(s->s.endsWith(".select")||s.endsWith(".showInEditor")||s.endsWith(".selectSlot")||s.endsWith(".launch")),"worker never changes editor slot selection or launches clips");

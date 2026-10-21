@@ -15,6 +15,8 @@ public final class MulticlipTargetChecks {
         Object value;
         NavigableSet<Integer> navigableScenes;
         int navigationDelay;
+        int mainBankCount;
+        java.util.function.Consumer<Object> onSet;
         void afterTicks(int delay, Runnable action) {
             tasks.add(() -> { if (delay == 0) action.run(); else afterTicks(delay - 1, action); });
         }
@@ -35,7 +37,8 @@ public final class MulticlipTargetChecks {
             if(op.equals("addValueObserver")&&name.endsWith(".playingNotes")) {
                 noteObservers.add((com.bitwig.extension.callback.ObjectValueChangedCallback<PlayingNote[]>)args[0]);return null;
             }
-            if (op.equals("set")) { value = args[0]; calls.add(name + ".set=" + args[0]); return null; }
+            if (op.equals("set")) { value = args[0]; calls.add(name + ".set=" + args[0]); if (onSet != null) onSet.accept(value); return null; }
+            if (op.equals("createMainTrackBank")) return node(mainBankCount++ == 0 ? "createMainTrackBank" : "discoveryBank").proxy(TrackBank.class);
             if (op.equals("selectChannel")) { calls.add(name + ".selectChannel:" + args[0]); return null; }
             if (op.equals("get") && value != null) return value;
             if (op.equals("toString")) return name;
@@ -56,7 +59,7 @@ public final class MulticlipTargetChecks {
             if (result == int.class) return 0;
             if (result == double.class) return 0.0;
             if (result == String.class) return "";
-            if (op.equals("getItemAt")) result = (name.endsWith("createMainTrackBank") || name.endsWith("createTrackBank")) ? Track.class : ClipLauncherSlot.class;
+            if (op.equals("getItemAt")) result = (name.endsWith("createMainTrackBank") || name.endsWith("discoveryBank") || name.endsWith("createTrackBank")) ? Track.class : ClipLauncherSlot.class;
             if (result.isInterface()) return node(op + (op.equals("getItemAt") ? args[0] : "")).proxy(result);
             return null;
         }
@@ -79,6 +82,7 @@ public final class MulticlipTargetChecks {
         group.node("isGroup").value = true;
         group.node("position").value = 10;
         group.node("isPinned").value = false;
+        group.node("createMainTrackBank").node("sceneBank").node("itemCount").value = 16;
         for (int lane = 0; lane < 16; lane++) {
             Api child = group.node("createMainTrackBank").node("getItemAt" + lane);
             child.node("exists").value = lane < 2;
@@ -352,6 +356,7 @@ public final class MulticlipTargetChecks {
         check(target.ready() && (int) clip.node("clipLauncherSlot").node("sceneIndex").value == 1,
                 "Metronome can acquire configured group and capture scene without a preceding STOP");
         target.deactivate();
+        target.configureHardPin(2);
         System.out.println("Multiclip checks passed: direct scene navigation, hard group pin, manual scene capture, stale edits, missing targets.");
     }
 }

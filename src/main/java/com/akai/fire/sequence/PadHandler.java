@@ -26,7 +26,7 @@ public class PadHandler {
 
     final DrumSequenceMode parent;
     private final PinnableCursorClip cursorClip;
-    private final NoteInput noteInput;
+    private final DrumPadNoteInput padInput;
     private final DrumPadBank padBank;
 
     private final NoteRepeatHandler noteRepeatHandler;
@@ -41,12 +41,8 @@ public class PadHandler {
     private int drumScrollOffset;
 
     private final BooleanValueObject[] playing = new BooleanValueObject[16];
-    private final BooleanValueObject notePlayingActive = new BooleanValueObject();
 
     private final DrumPadActivity activity = new DrumPadActivity();
-    private final Integer[] notesToDrumTable = new Integer[128];
-    private final int[] notesToPadsTable = new int[128];
-    private final int[] padNotes = new int[16];
     private final DisplayTarget displayTarget;
     private final DisplayInfo padDisplayInfo;
 
@@ -54,10 +50,54 @@ public class PadHandler {
                       final Layer muteLayer, final Layer soloLayer) {
         this.parent = parent;
         cursorClip = parent.getCursorClip();
-        noteInput = driver.getNoteInput();
-        for (int i = 0; i < padNotes.length; i++) {
-            padNotes[i] = 0x36 + i;
+        Track rack = parent.getMulticlip() == null
+                ? driver.getViewControl().getCursorTrack()
+                : driver.getViewControl().getCursorTrack().createMasterTrack(0);
+        rack.exists().markInterested();
+        rack.name().markInterested();
+        // Resolve the rack once: native repeat and Select audition must share this endpoint.
+        NoteRepeatInput repeatInput = new NoteRepeatInput(driver.getNoteInput(),
+                () -> rack, driver.getDiagnosticLog()::log);
+        padInput = new DrumPadNoteInput(driver.getNoteInput(), rack,
+                parent.getMulticlip() != null, repeatInput, driver.getDiagnosticLog()::log);
+        if (parent.getMulticlip() != null) {
+            parent.getMulticlip().onAuditionInvalidated(padInput::suspend);
+            parent.getMulticlip().observeInputNotes(repeatInput::observeNotes);
         }
+        rack.exists().addValueObserver(exists -> {
+            if (!exists) padInput.suspend();
+            else if (parent.isActive() && (parent.getMulticlip() == null
+                    || parent.getMulticlip().auditionReady())) padInput.rackReady();
+        });
+        driver.getHost().getPreferences().getSignalSetting("Test C1", "Diagnostics", "Trigger rack")
+                .addSignalObserver(() -> {
+                    Runnable release = padInput.testC1(parent.getAccentHandler().getCurrenVel());
+                    if (release != null) {
+                        driver.getHost().scheduleTask(release, 150);
+                    } else {
+                        driver.getHost().showPopupNotification("Fire: rack unavailable; select group and press STOP");
+                    }
+                });
+        driver.getHost().getPreferences().getSignalSetting("Test plain native C1", "Diagnostics", "Plain note")
+                .addSignalObserver(() -> {
+                    Runnable release = repeatInput.testC1(parent.getAccentHandler().getCurrenVel(), false, 0);
+                    if (release != null) driver.getHost().scheduleTask(release, 1000);
+                });
+        driver.getHost().getPreferences().getSignalSetting("Test native octave 1", "Diagnostics", "Repeat octave 1")
+                .addSignalObserver(() -> {
+                    Runnable release = repeatInput.testC1(parent.getAccentHandler().getCurrenVel(), true, 1);
+                    if (release != null) driver.getHost().scheduleTask(release, 1000);
+                });
+        driver.getHost().getPreferences().getSignalSetting("Test native repeat C1", "Diagnostics", "Native repeat")
+                .addSignalObserver(() -> {
+                    Runnable release = repeatInput.testC1(parent.getAccentHandler().getCurrenVel());
+                    if (release != null) {
+                        driver.getDiagnosticLog().log("NATIVE_REPEAT_TEST pitch=36");
+                        driver.getHost().scheduleTask(release, 1000);
+                    } else {
+                        driver.getHost().showPopupNotification("Fire: rack unavailable; select group and press STOP");
+                    }
+                });
         final ViewCursorControl control = driver.getViewControl();
 
         padBank = control.getDrumPadBank();
@@ -87,16 +127,9 @@ public class PadHandler {
             button.bindLight(soloLayer, pad::soloingColors);
         }
 
-        noteRepeatHandler = new NoteRepeatHandler(driver, parent);
+        noteRepeatHandler = new NoteRepeatHandler(padInput.repeatInput(), parent);
         noteRepeatHandler.getNoteRepeatActive().addValueObserver(this::handleNoteRepeatChanged);
 
-        notePlayingActive.addValueObserver(active -> {
-            if (active) {
-                applyScale();
-            } else if (!notePlayingEnabled()) {
-                disableNotePlaying();
-            }
-        });
         initButtons(mainLayer, driver);
         padDisplayInfo = new DisplayInfo() //
                 .addLine("Selected Pad", 1, 0, TextJustification.CENTER) //
@@ -118,17 +151,16 @@ public class PadHandler {
 
     private void handlePadSelection(final PadContainer pad, final boolean pressed) {
         if (!pressed) {
-            // When the pad is released, stop the note
-            triggerNote(pad, false);
+            padInput.pad(pad.index, false, 0, false);
             padsHeld.remove(pad.index);
             return;
         }
 
-        if (parent.isSelectHeld()) {
-            // If Select is held, play the note instead of selecting
-            triggerNote(pad, true);
-            return; // Skip the rest of the selection logic
+        boolean repeat = noteRepeatHandler.getNoteRepeatActive().get();
+        if (notePlayingEnabled()) {
+            padInput.pad(pad.index, true, parent.getAccentHandler().getCurrenVel(), repeat);
         }
+        if (parent.isSelectHeld()) return;
 
         if (parent.isCopyHeld()) {
             doNotesPadCopy(pad);
@@ -229,10 +261,7 @@ public class PadHandler {
     }
 
     public void executePadSelection(final PadContainer pad) {
-        if (parent.isSelectHeld()) { // If the Select button is held, play notes instead
-            triggerNote(pad, true); // Start playing the note
-            return; // Skip the normal selection behavior
-        }
+        if (parent.isSelectHeld()) return;
 
         // Normal pad selection behavior
         currentPadColor = pad.getBitwigPadColor();
@@ -270,22 +299,6 @@ public class PadHandler {
         }
     }
 
-    private void triggerNote(final PadContainer pad, boolean play) {
-        int notePitch = drumScrollOffset + pad.getIndex();
-
-        if (play) {
-            // Always send a Note Off before Note On to ensure retriggering works
-            //int currentVelocity = parent.getAccentHandler().getCurrenVel();
-            noteInput.sendRawMidiEvent(0x80, notePitch, 0); // Note Off
-            noteInput.sendRawMidiEvent(0x90, notePitch, 100); // Note On
-        } else {
-            // Stop the note when releasing the pad
-            noteInput.sendRawMidiEvent(0x80, notePitch, 0); // Note Off
-        }
-    }
-
-
-
     public void focusOnSelectedPad() {
         parent.resetEuclideanPattern();
         final int padIndex = selectedPad != null ? selectedPad.index : 0;
@@ -314,11 +327,6 @@ public class PadHandler {
     private void setupPlaying(final ViewCursorControl control) {
         final DrumPadBank drumPadBank = control.getDrumPadBank();
         final CursorTrack cursorTrack = control.getCursorTrack();
-        for (int i = 0; i < notesToDrumTable.length; i++) {
-            notesToDrumTable[i] = -1;
-            notesToPadsTable[i] = -1;
-        }
-        noteInput.setKeyTranslationTable(notesToDrumTable);
         drumPadBank.scrollPosition().addValueObserver(offset -> {
             drumScrollOffset = offset;
             refreshActivity();
@@ -345,10 +353,11 @@ public class PadHandler {
     }
 
     boolean notePlayingEnabled() {
-        return notePlayingActive.get() || noteRepeatHandler.getNoteRepeatActive().get();
+        return parent.isSelectHeld() || noteRepeatHandler.getNoteRepeatActive().get();
     }
 
     private void handleNoteRepeatChanged(final boolean nrActive) {
+        padInput.stopAll();
         if (nrActive) {
             noteRepeatHandler.activate();
             applyScale();
@@ -361,34 +370,27 @@ public class PadHandler {
     }
 
     void disableNotePlaying() {
-        if (!parent.isActive()) {
-            return;
-        }
         padsHeld.clear();
-        for (int i = 0; i < 128; i++) {
-            notesToDrumTable[i] = -1;
-        }
-        noteInput.setKeyTranslationTable(notesToDrumTable);
+        padInput.update(false, drumScrollOffset);
     }
 
     void applyScale() {
-        if (!parent.isActive()) {
-            return;
-        }
-        for (int i = 0; i < 128; i++) {
-            notesToPadsTable[i] = -1;
-        }
-        for (int i = 0; i < 16; i++) {
-            final int padnote = padNotes[i];
-            final int noteToPadIndex = drumScrollOffset + i;
-            if (noteToPadIndex < 128) {
-                notesToDrumTable[padnote] = noteToPadIndex;
-                notesToPadsTable[noteToPadIndex] = i;
-            }
-        }
-        if (notePlayingEnabled()) {
-            noteInput.setKeyTranslationTable(notesToDrumTable);
-        }
+        padInput.update(parent.isActive() && notePlayingEnabled(), drumScrollOffset);
+    }
+
+    void activateNoteInput() {
+        padInput.activate();
+        applyScale();
+    }
+
+    void rackReady() {
+        padInput.rackReady();
+        applyScale();
+    }
+
+    void deactivateNoteInput() {
+        disableNotePlaying();
+        padInput.deactivate();
     }
 
     public void handleMainEncoder(final int inc) {

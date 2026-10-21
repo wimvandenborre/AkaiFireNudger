@@ -1,3 +1,58 @@
+## 0.86-scene-selection-2
+
+- Fix Metronome capture scrolling Bitwig's launcher to the bottom: SceneBank scrolling triggers Follow Controller in the GUI even on a private bank. Page discovery through a child ClipLauncherSlotBank instead, which updates the shared search window without GUI follow.
+- Remove unnecessary track-bank scrolling from discovery. Add a regression simulation with Follow Controller enabled, an early playing scene, and 67 scenes: the search visits the last page while the visible launcher stays at the captured scene.
+
+## 0.86-scene-selection-1
+
+- Remove Metronome capture's first-16-scenes restriction. Search all project scenes through a private paged child bank, then move the editing bank to the captured scene. Retain absolute scene indices across pad changes, clip-row actions and group groove targeting.
+- Put Clip selection controls before the other controller preferences: a one-based scene number, Select scene clips, and Follow playing scene / Capture. Number changes and preference restore are inert; Select explicitly captures the chosen scene without launching or creating clips.
+- Let MIDI and groove cursors traverse long populated clip lists while they keep making progress, retaining a timeout for stalled or missing targets. Wait for scene-bank observations before reading reused clip slots and cancel stale discovery requests on manual selection, rack changes or mode exit.
+- Add checks covering 67 scenes, delayed and clamped bank positions, distant MIDI/groove cursors, manual scene selection, empty slots, cancellation and selection without clip writes.
+
+## 0.85-native-repeat-10
+
+- Fix the startup exception in native repeat attachment: diagnostic logging read the rack master position without subscribing in init. Remove that unnecessary read; the already subscribed rack name still identifies the destination.
+- Add a regression guard that rejects position access during native attachment and BROWSER reconnection. Keep build 9's routing and native timing unchanged.
+
+## 0.85-native-repeat-9
+
+- Compare against the pre-multiclip input path: restore inclusion in All Inputs and route native repeat to the exact concrete rack endpoint used by Select audition. Remove the child-track destination workaround.
+- Rebind the native source on BROWSER activation so an early initialization attachment cannot remain stale. Keep timing and gates in Bitwig's native arpeggiator.
+- Automated checks verify routing and release behavior; live sound still requires verification.
+
+## 0.85-native-repeat-8
+
+- Enter native input through the first MIDI child of the configured group, using its existing output to the rack. A group/master audition endpoint and an instrument-track MIDI input are distinct paths. Keep Select audition unchanged.
+- Add plain native C1 and octave-one native repeat diagnostics to isolate routing and note generation. Test holds temporarily block physical forwarding and restore the active repeat configuration on release.
+
+## 0.85-native-repeat-7
+
+- Route native repeat to the actual project track selected by Hard pin group track (1 = project track 1), rather than the group's master-track proxy. Setting 0 uses the captured group. Child clip selection does not change the destination.
+- Retain the working direct Select + pad audition endpoint and native repeat timing. Detach the previously attached project track before switching destinations; unavailable targets block forwarding. Log the resolved native destination's name and position.
+- Extend regression coverage for one-based setting resolution, separate audition/repeat destinations, retarget cleanup and missing tracks.
+
+## 0.85-native-repeat-6
+
+- Remove controller-timer repeat. BROWSER now maps hardware pad notes into Bitwig's native arpeggiator, synchronized to the transport, routed to the concrete rack/master track independently of the child clip editor.
+- Disable pressure-to-velocity and use explicit Normal/Accent note velocity. Set native gate to 50%, disable shuffle/humanize/overlaps, and terminate notes on release. Straight/triplet rates remain in beats.
+- Keep the confirmed direct Select + pad trigger. While native repeat is active, hardware callbacks do not also generate manual notes. Turning repeat off restores silent physical input and direct Select audition.
+- Release native voices before bank/context/route changes. Add Diagnostics → Test native repeat C1 to test the native endpoint with one held note; its one-second timer only releases the test note and never generates repeat hits. Log native enable/rate/velocity mode feedback and mapping state.
+
+## 0.85-rack-repeat-5 (superseded; timing unsuitable for musical repeat)
+
+- BROWSER note repeat now retriggers the same rack note-on/off endpoint confirmed working for Select + pad. Remove silent native MIDI-input forwarding and its input routes.
+- Retain the repeat toggle and straight/triplet rate selector. Each held pad plays immediately, then repeats at the project tempo with a 50% gate; Normal/Accent velocity changes affect subsequent hits.
+- Use monotonic deadlines to avoid accumulating timer drift; skip missed hits after long callbacks. Pad release, BROWSER Off, bank changes, group acquisition and deactivation cancel pending hits and release voices independently.
+- Timing uses Bitwig's controller task scheduler and is not sample accurate; heavy host load can introduce jitter. Direct rack triggering is for live audition and does not write notes into child clips.
+
+## 0.85-rack-trigger-4
+
+- Select + top-row pads now call the rack track's note-on/off API directly. In group-child mode the endpoint is the group's concrete master track, which hosts the rack; clip cursors and child-track input routing are independent.
+- Physical input translation stays blocked so the hardware gesture handlers remain responsible for notes, without duplicate forwarding. The native repeat input used in this build was superseded by direct repeat in 0.85-rack-repeat-5.
+- Track exact sounding pitches and release them on pad/Select release, bank changes, group acquisition and deactivation. Ordinary pad selection never sends note-offs.
+- Add Diagnostics → Test C1 to test the rack endpoint independently of hardware gestures. Log actual audition note-on/off calls and resolved rack identity.
+
 ### Akai Fire differences from upstream
 - Shift + Pad => cycle and apply color from a predefined color list 
 - Shift + Clip => cycle and apply color from a predefined color list

@@ -1,10 +1,7 @@
 package com.akai.fire.sequence;
 
-import com.akai.fire.AkaiFireDrumSeqExtension;
 import com.akai.fire.lights.BiColorLightState;
-import com.bitwig.extension.controller.api.Arpeggiator;
 import com.bitwig.extension.controller.api.CursorRemoteControlsPage;
-import com.bitwig.extension.controller.api.NoteInput;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
 
 public class NoteRepeatHandler {
@@ -17,23 +14,16 @@ public class NoteRepeatHandler {
 			2.0 / 3 };
 	private static final String[] GRID_RATES_STR = new String[] { "1/32", "1/16", "1/8", "1/4", //
 			"1/32T", "1/16T", "1/8T", "1/4T" };
-	private final Arpeggiator arp;
-	private final NoteInput noteInput;
+	private final NoteRepeatInput repeatInput;
 	private int selectedArpIndex;
 
-	public NoteRepeatHandler(final AkaiFireDrumSeqExtension driver, final DrumSequenceMode drumSequenceMode) {
-		this.parent = drumSequenceMode;
-		this.noteInput = driver.getNoteInput();
-		this.setNoteInputVelocity(parent.getAccentHandler().getCurrenVel());
-		this.selectedArpIndex = 1;
-		arp = noteInput.arpeggiator();
-		arp.usePressureToVelocity().set(true);
-		// arp.shuffle().set(true);
-		arp.mode().set("all"); // that's the note repeat way
-		arp.octaves().set(0);
-		arp.humanize().set(0);
-		arp.isFreeRunning().set(false);
-	}
+    public NoteRepeatHandler(final NoteRepeatInput input, final DrumSequenceMode drumSequenceMode) {
+        parent = drumSequenceMode;
+        selectedArpIndex = 1;
+        repeatInput = input;
+        repeatInput.velocity(parent.getAccentHandler().getCurrenVel());
+        repeatInput.rate(currentArpRate);
+    }
 
 	BiColorLightState getLightState() {
 		return noteRepeatActive.get() ? BiColorLightState.HALF : BiColorLightState.OFF;
@@ -90,29 +80,13 @@ public class NoteRepeatHandler {
 	private void setNoteRateValue(final int index) {
 		this.selectedArpIndex = index;
 		this.currentArpRate = ARP_RATES[index];
-		arp.rate().set(currentArpRate);
+		repeatInput.rate(currentArpRate);
 		parent.getOled().valueInfo("Note Repeat", GRID_RATES_STR[index]);
 	}
 
-	public void activate() {
-		arp.isEnabled().set(true);
-		arp.mode().set("all"); // that's the note repeat way
-		arp.octaves().set(0);
-		arp.humanize().set(0);
-		arp.isFreeRunning().set(false);
-		arp.rate().set(currentArpRate);
-	}
+    public void activate() { repeatInput.activate(); }
 
-	public void deactivate() {
-		arp.isEnabled().set(false);
-	}
+    public void deactivate() { repeatInput.deactivate(); }
 
-	public void setNoteInputVelocity(final int velocity) {
-		// NOTE: note repeat velocity
-		final Integer[] notesToDrumTable = new Integer[128];
-		for (int i = 0; i < notesToDrumTable.length; i++) {
-			notesToDrumTable[i] = velocity;
-		}
-		noteInput.setVelocityTranslationTable(notesToDrumTable);
-	}
+    public void setNoteInputVelocity(final int velocity) { repeatInput.velocity(velocity); }
 }

@@ -7,6 +7,7 @@ import com.akai.fire.display.OledDisplay;
 import com.akai.fire.lights.BiColorLightState;
 import com.akai.fire.lights.RgbLigthState;
 import com.akai.fire.sequence.DrumSequenceMode;
+import com.akai.fire.sequence.SceneSelectionSettings;
 import com.akai.fire.utils.MainCursor;
 import com.akai.fire.utils.PatternButtons;
 import com.bitwig.extension.api.util.midi.ShortMidiMessage;
@@ -59,6 +60,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
     private DiagnosticLog diagnosticLog;
 
     private Preferences preferences;
+    private SceneSelectionSettings sceneSelectionSettings;
     private SettableEnumValue secondRowFuncPref;
 
     private PatternButtons patternButtons;
@@ -108,6 +110,8 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
 
     }
 
+    public SceneSelectionSettings getSceneSelectionSettings() { return sceneSelectionSettings; }
+
     private void handlePing() {
         // sections.forEach(section -> section.notifyBlink(blinkTicks));
         blinkTicks++;
@@ -134,6 +138,8 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
 
     private void setUpPreferences() {
         preferences = getHost().getPreferences();
+        sceneSelectionSettings = new SceneSelectionSettings(preferences,
+                () -> host.showPopupNotification("Fire: select Group child tracks as the clip source"));
         preferences.getSignalSetting("Loaded build", "About", AkaiFireDrumSeqDefinition.BUILD_ID)
                 .addSignalObserver(this::printBuildInfo);
 //        final SettableEnumValue padStyle = preferences.getEnumSetting("Pad Coloring", //

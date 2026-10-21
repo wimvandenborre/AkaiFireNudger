@@ -15,7 +15,11 @@ final class MulticlipTarget {
     private final TrackBank fixedTracks;
     private int hardPinTrack;
     private boolean manualSelection = true;
-    private boolean refreshAfterAcquire;
+    private Runnable afterAcquire;
+    private SceneSelectionSettings sceneSettings;
+    private final PlayingSceneScanner sceneScanner;
+    private boolean discovering;
+    private static final int SCENE_PAGE = PlayingSceneScanner.PAGE_SIZE;
     private final PinnableCursorClip clip;
     private final PinnableCursorClip fine;
     private final Runnable invalidate;
@@ -39,10 +43,16 @@ final class MulticlipTarget {
     private int lane = -1;
     private int scene;
     private Runnable pending;
-    private final long[] scenePlayOrder = new long[16];
+    private final java.util.Map<Integer, Long> scenePlayOrder = new java.util.HashMap<>();
     private long playOrder;
     private final boolean[] childPlaying=new boolean[LANES];
     private java.util.function.BiConsumer<Integer,Boolean> activity=(lane,playing)->{};
+    private Runnable auditionInvalidated = () -> {};
+    private java.util.function.BiConsumer<Integer, PlayingNote[]> inputNotes = (lane, notes) -> {};
+
+    void observeInputNotes(java.util.function.BiConsumer<Integer, PlayingNote[]> observer) { inputNotes = observer; }
+
+    void onAuditionInvalidated(Runnable callback) { auditionInvalidated = callback; }
 
     void observeActivity(java.util.function.BiConsumer<Integer,Boolean> callback) {
         activity=callback;publishActivity();
@@ -72,6 +82,7 @@ final class MulticlipTarget {
             track.exists().markInterested();
             track.isGroup().markInterested();
             track.position().markInterested();
+            track.name().markInterested();
         }
         group.exists().markInterested();
         group.isGroup().markInterested();
@@ -80,7 +91,10 @@ final class MulticlipTarget {
         editor.position().markInterested();
         editor.isPinned().markInterested();
         // Exclude group master and effect tracks from the positional drum lanes.
-        children = group.createMainTrackBank(LANES, 0, 16, false);
+        children = group.createMainTrackBank(LANES, 0, SCENE_PAGE, false);
+        children.sceneBank().itemCount().markInterested();
+        children.sceneBank().scrollPosition().markInterested();
+        editor.clipLauncherSlotBank().scrollPosition().markInterested();
         children.scrollPosition().markInterested();
         children.scrollPosition().set(0);
         for (int i = 0; i < LANES; i++) {
@@ -93,10 +107,11 @@ final class MulticlipTarget {
             final int activityLane=i;
             track.playingNotes().addValueObserver(notes->{
                 childPlaying[activityLane]=notes.length>0;publishActivity();
+                inputNotes.accept(activityLane, notes);
             });
             track.exists().addValueObserver(exists->{if(!exists)childPlaying[activityLane]=false;publishActivity();});
             track.position().addValueObserver(position->{childPlaying[activityLane]=false;publishActivity();});
-            for (int j = 0; j < 16; j++) {
+            for (int j = 0; j < SCENE_PAGE; j++) {
                 ClipLauncherSlot slot = track.clipLauncherSlotBank().getItemAt(j);
                 slot.hasContent().markInterested();
                 slot.sceneIndex().markInterested();
@@ -107,10 +122,13 @@ final class MulticlipTarget {
                 final int sceneIndex = j;
                 slot.isSelected().addValueObserver(selected -> observeSelection(childIndex, sceneIndex, selected));
                 slot.isPlaying().addValueObserver(playing -> {
-                    if (playing && active && eligible(childIndex)) scenePlayOrder[sceneIndex] = ++playOrder;
+                    if (playing && active && eligible(childIndex)) {
+                        scenePlayOrder.put(slot.sceneIndex().get(), ++playOrder);
+                    }
                 });
             }
         }
+        sceneScanner = new PlayingSceneScanner(host, group, diagnostic);
         for (PinnableCursorClip view : new PinnableCursorClip[]{clip, fine}) {
             view.exists().markInterested();
             view.isPinned().markInterested();
@@ -126,6 +144,31 @@ final class MulticlipTarget {
                 new String[]{"Manual (Metronome)", "Follow editor selection"}, "Manual (Metronome)")
                 .addValueObserver(value -> configureManualSelection(value.equals("Manual (Metronome)")));
     }
+
+    void bindSceneSettings(SceneSelectionSettings settings) {
+        sceneSettings = settings;
+        settings.bind(this::selectScene, this::followPlayingScene);
+    }
+
+    /** Explicit selection only; changing the number field alone does not move clips. */
+    void selectScene(int sceneNumber) {
+        if (!active) { feedback.accept("Enter drum mode first"); return; }
+        if (!eligible(lane)) {
+            if (hardPinTrack > 0) acquireGroup(() -> selectScene(sceneNumber));
+            else feedback.accept("Select group, press STOP");
+            return;
+        }
+        int count = sceneCount();
+        if (count == 0) { feedback.accept("No launcher scenes"); return; }
+        if (sceneNumber < 1 || sceneNumber > count) {
+            feedback.accept("Scene must be 1–" + count); return;
+        }
+        scene = sceneNumber - 1;
+        diagnostic.accept("MULTICLIP_MANUAL_SCENE lane=" + lane + " scene=" + scene);
+        retarget(null);
+    }
+
+    private int sceneCount() { return Math.max(0, children.sceneBank().itemCount().get()); }
 
     void configureHardPin(int trackNumber) {
         if (hardPinTrack == trackNumber) return;
@@ -150,24 +193,25 @@ final class MulticlipTarget {
     }
 
     void acquireGroup() {
-        acquireGroup(false);
+        acquireGroup(null);
     }
 
-    private void acquireGroup(boolean refresh) {
-        refreshAfterAcquire = refresh;
+    private void acquireGroup(Runnable after) {
+        afterAcquire = after;
         // STOP must not release an established hard pin or discard the editing scene.
         if (active && hardPinTrack > 0 && eligible(lane)
                 && fixedTrack().exists().get() && fixedTrack().isGroup().get()
                 && group.position().get() == fixedTrack().position().get()) {
             group.isPinned().set(true);
-            if (refresh) followPlayingScene();
+            if (after != null) { afterAcquire = null; after.run(); }
             return;
         }
         if (!active) previousPin = group.isPinned().get();
+        auditionInvalidated.run();
         active = true;
         groupReady = false;
         publishActivity();
-        java.util.Arrays.fill(scenePlayOrder, 0);
+        scenePlayOrder.clear();
         playOrder = 0;
         cancel();
         group.isPinned().set(hardPinTrack > 0);
@@ -215,9 +259,10 @@ final class MulticlipTarget {
                 if (!keepScene || !eligible(lane)) chooseInitialClip();
                 diagnostic.accept("MULTICLIP_GROUP position=" + groupPosition + " lane=" + lane + " scene=" + scene);
                 onGroup.run();
-                if (refreshAfterAcquire) {
-                    refreshAfterAcquire = false;
-                    if (eligible(lane)) followPlayingScene();
+                Runnable requested = afterAcquire;
+                afterAcquire = null;
+                if (requested != null) {
+                    if (eligible(lane)) requested.run();
                     else fail("No note children in group");
                 } else retarget(null);
             }, 100);
@@ -235,13 +280,13 @@ final class MulticlipTarget {
         for (int priority = 0; priority < 3; priority++) {
             for (int child = 0; child < LANES; child++) {
                 if (!eligible(child)) continue;
-                for (int index = 0; index < 16; index++) {
-                    ClipLauncherSlot candidate = slot(child, index);
+                for (int index = 0; index < SCENE_PAGE; index++) {
+                    ClipLauncherSlot candidate = localSlot(child, index);
                     if (candidate.hasContent().get() && (priority == 2
                             || (priority == 0 && candidate.isSelected().get())
                             || (priority == 1 && candidate.isPlaying().get()))) {
                         lane = child;
-                        scene = index;
+                        scene = candidate.sceneIndex().get();
                         return;
                     }
                 }
@@ -254,13 +299,16 @@ final class MulticlipTarget {
     }
 
     private void observeSelection(int child, int index, boolean selected) {
-        if (manualSelection || !active || targeting || !selected || !eligible(child) || (child == lane && index == scene)) return;
+        int absoluteScene = localSlot(child, index).sceneIndex().get();
+        if (manualSelection || !active || targeting || discovering || !selected || !eligible(child)
+                || (child == lane && absoluteScene == scene)) return;
         long ticket = ++selectionGeneration;
         host.scheduleTask(() -> {
             if (ticket != selectionGeneration || !active || !eligible(child)
-                    || !slot(child, index).isSelected().get()) return;
+                    || localSlot(child, index).sceneIndex().get() != absoluteScene
+                    || !localSlot(child, index).isSelected().get()) return;
             lane = child;
-            scene = index;
+            scene = absoluteScene;
             diagnostic.accept("MULTICLIP_SELECTED lane=" + lane + " scene=" + scene);
             retarget(null);
         }, 50);
@@ -281,15 +329,20 @@ final class MulticlipTarget {
         return track.exists().get() && track.canHoldNoteData().get() && !track.isGroup().get();
     }
 
+    boolean auditionReady() {
+        return active && groupReady && group.exists().get() && group.isGroup().get()
+                && group.position().get() == groupPosition;
+    }
+
     boolean ready() {
-        return ready && eligible(lane) && matches();
+        return ready && !discovering && eligible(lane) && matches();
     }
 
     record GrooveChild(int lane, Track track, int position, int scene) {}
 
     String grooveContext() {
         return active && groupReady && group.exists().get() && group.position().get()==groupPosition
-                ? groupPosition+":"+scene : "";
+                && !discovering && sceneVisible() ? groupPosition+":"+scene : "";
     }
 
     java.util.List<GrooveChild> grooveChildren() {
@@ -300,8 +353,22 @@ final class MulticlipTarget {
         return java.util.List.copyOf(result);
     }
 
-    private ClipLauncherSlot slot(int index, int sceneIndex) {
-        return children.getItemAt(index).clipLauncherSlotBank().getItemAt(sceneIndex);
+    private ClipLauncherSlot localSlot(int lane, int index) {
+        return children.getItemAt(lane).clipLauncherSlotBank().getItemAt(index);
+    }
+
+    private ClipLauncherSlot slot(int index, int absoluteScene) {
+        return localSlot(index, absoluteScene - children.sceneBank().scrollPosition().get());
+    }
+
+    private boolean sceneVisible() {
+        int relative = scene - children.sceneBank().scrollPosition().get();
+        if (relative < 0 || relative >= SCENE_PAGE || lane < 0 || lane >= LANES) return false;
+        // Position is acknowledged before relying on content or selection in a reused slot proxy.
+        for (int child = 0; child < LANES; child++) {
+            if (eligible(child) && localSlot(child, relative).sceneIndex().get() != scene) return false;
+        }
+        return true;
     }
 
     void selectNote(int note) {
@@ -311,36 +378,78 @@ final class MulticlipTarget {
         if (groupReady) retarget(null);
     }
 
-    /** Selection only: use the latest playing scene, preserving the current drum lane. */
+    /** Selection only: search the whole scene list, preserving the current drum lane. */
     void followPlayingScene() {
         if (!active || !eligible(lane)) {
             if (active && hardPinTrack > 0) {
-                acquireGroup(true);
+                acquireGroup(this::followPlayingScene);
                 return;
             }
             feedback.accept("Select group, press STOP");
             return;
         }
-        int found = -1;
-        long newest = -1;
-        // Start with this lane for deterministic ties when attaching to an already playing project.
-        for (int offset = 0; offset < LANES; offset++) {
-            int child = (lane + offset) % LANES;
-            if (!eligible(child)) continue;
-            for (int index = 0; index < 16; index++) {
-                ClipLauncherSlot candidate = slot(child, index);
-                if (candidate.hasContent().get() && candidate.isPlaying().get()
-                        && scenePlayOrder[index] > newest) {
-                    found = index;
-                    newest = scenePlayOrder[index];
+        int count = sceneCount();
+        if (count <= SCENE_PAGE && children.sceneBank().scrollPosition().get() == 0) {
+            int found = -1;
+            long newest = -1;
+            for (int offset = 0; offset < LANES; offset++) {
+                int child = (lane + offset) % LANES;
+                if (!eligible(child)) continue;
+                for (int index = 0; index < count; index++) {
+                    ClipLauncherSlot candidate = localSlot(child, index);
+                    int absolute = candidate.sceneIndex().get();
+                    long order = scenePlayOrder.getOrDefault(absolute, 0L);
+                    if (candidate.hasContent().get() && candidate.isPlaying().get() && order > newest) {
+                        found = absolute; newest = order;
+                    }
                 }
             }
-        }
-        if (found < 0) {
-            feedback.accept("No playing child clip");
+            if (found < 0) { feedback.accept("No playing child clip"); return; }
+            captureScene(found);
             return;
         }
-        scene = found;
+        // Discovery uses its own bank. Editing remains blocked until the chosen scene settles.
+        cancel();
+        discovering = true;
+        long ticket = generation;
+        int originalScene = scene;
+        int[] positions = new int[LANES];
+        for (int child = 0; child < LANES; child++) {
+            positions[child] = eligible(child) ? children.getItemAt(child).position().get() : -1;
+        }
+        java.util.List<PlayingSceneScanner.Candidate> candidates = new java.util.ArrayList<>();
+        sceneScanner.scan(count, positions, candidates::add, () -> {
+            if (!active || ticket != generation) return;
+            discovering = false;
+            PlayingSceneScanner.Candidate best = null;
+            for (var candidate : candidates) {
+                if (best == null || newer(candidate, best)) best = candidate;
+            }
+            if (best == null) {
+                scene = originalScene;
+                retarget(null);
+                feedback.accept("No playing child clip");
+            } else captureScene(best.scene());
+        }, message -> {
+            if (!active || ticket != generation) return;
+            discovering = false;
+            scene = originalScene;
+            retarget(null);
+            feedback.accept(message);
+        });
+    }
+
+    private boolean newer(PlayingSceneScanner.Candidate candidate, PlayingSceneScanner.Candidate best) {
+        long order = scenePlayOrder.getOrDefault(candidate.scene(), 0L);
+        long bestOrder = scenePlayOrder.getOrDefault(best.scene(), 0L);
+        if (order != bestOrder) return order > bestOrder;
+        int distance = (candidate.lane() - lane + LANES) % LANES;
+        int bestDistance = (best.lane() - lane + LANES) % LANES;
+        return distance < bestDistance || (distance == bestDistance && candidate.scene() < best.scene());
+    }
+
+    private void captureScene(int absoluteScene) {
+        scene = absoluteScene;
         diagnostic.accept("MULTICLIP_FOLLOW_PLAYING lane=" + lane + " scene=" + scene);
         retarget(null);
     }
@@ -352,6 +461,8 @@ final class MulticlipTarget {
 
     private void cancel() {
         generation++;
+        sceneScanner.cancel();
+        discovering = false;
         selectionGeneration++;
         ready = false;
         targeting = false;
@@ -375,6 +486,31 @@ final class MulticlipTarget {
         targetOpened = false;
         coarseSeek.reset();
         fineSeek.reset();
+        if (!sceneVisible()) {
+            children.sceneBank().scrollPosition().set((scene / SCENE_PAGE) * SCENE_PAGE);
+            awaitSceneWindow(generation, 0);
+            return;
+        }
+        openTarget();
+    }
+
+    private void awaitSceneWindow(long ticket, int attempt) {
+        host.scheduleTask(() -> {
+            if (!active || ticket != generation) return;
+            if (!eligible(lane)) { fail("Child track unavailable"); return; }
+            if (sceneVisible()) {
+                // Allow reused slot properties one more observation cycle to settle.
+                host.scheduleTask(() -> {
+                    if (active && ticket == generation && sceneVisible()) openTarget();
+                    else if (active && ticket == generation) fail("Scene changed; select again");
+                }, 50);
+            } else if (attempt < 40) awaitSceneWindow(ticket, attempt + 1);
+            else fail("Scene unavailable; select again");
+        }, 50);
+    }
+
+    private void openTarget() {
+        editor.clipLauncherSlotBank().scrollPosition().set(children.sceneBank().scrollPosition().get());
         diagnostic.accept("MULTICLIP_TARGET lane=" + lane + " scene=" + scene
                 + " child=" + children.getItemAt(lane).name().get()
                 + " position=" + children.getItemAt(lane).position().get()
@@ -388,6 +524,7 @@ final class MulticlipTarget {
     }
 
     private boolean matches() {
+        if (!sceneVisible()) return false;
         int position = children.getItemAt(lane).position().get();
         boolean content = slot(lane, scene).hasContent().get();
         int absoluteScene = slot(lane, scene).sceneIndex().get();
@@ -404,6 +541,8 @@ final class MulticlipTarget {
             if (!active || ticket != generation) return;
             if (!eligible(lane)) { fail("Child track unavailable"); return; }
             if (!targetOpened || !matches()) {
+                int nextAttempt = attempt + 1;
+                if (!sceneVisible()) { fail("Scene changed; select again"); return; }
                 if (!targetOpened) {
                     // Give the editor selection one chance after the track settles.
                     if (!editor.isPinned().get() && !clip.isPinned().get() && !fine.isPinned().get()
@@ -420,10 +559,11 @@ final class MulticlipTarget {
                     // after each move rather than counting selectNext calls as scenes.
                     int absoluteScene = slot(lane, scene).sceneIndex().get();
                     int position = children.getItemAt(lane).position().get();
-                    coarseSeek.advance(clip, position, absoluteScene, diagnostic);
-                    fineSeek.advance(fine, position, absoluteScene, diagnostic);
+                    boolean coarseProgress = coarseSeek.advance(clip, position, absoluteScene, diagnostic);
+                    boolean fineProgress = fineSeek.advance(fine, position, absoluteScene, diagnostic);
+                    if (coarseProgress || fineProgress) nextAttempt = 0;
                 }
-                if (attempt < 40) awaitTarget(ticket, attempt + 1);
+                if (nextAttempt < 40) awaitTarget(ticket, nextAttempt);
                 else {
                     diagnostic.accept("MULTICLIP_TIMEOUT editor=" + editor.position().get()
                             + " coarseTrack=" + clip.getTrack().position().get()
@@ -451,6 +591,7 @@ final class MulticlipTarget {
                 }
                 ready = true;
                 targeting = false;
+                if (sceneSettings != null) sceneSettings.selected(scene);
                 if (manualSelection) {
                     editor.isPinned().set(true);
                     clip.isPinned().set(true);
@@ -476,7 +617,8 @@ final class MulticlipTarget {
 
     /** Plain scene actions target this lane; ALT launches/creates the group's child scene. */
     void scene(int index, boolean copy, boolean delete, boolean shift, boolean allChildren) {
-        if (!eligible(lane) || index < 0 || index >= 16) return;
+        if (!eligible(lane) || discovering || !sceneVisible() || index < 0 || index >= SCENE_PAGE) return;
+        index += children.sceneBank().scrollPosition().get();
         ClipLauncherSlot target = slot(lane, index);
         if (copy) {
             if (scene != index && slot(lane, scene).hasContent().get())
@@ -510,7 +652,7 @@ final class MulticlipTarget {
     int midiChannel() { return Math.max(0, lane); }
 
     void createClip(Runnable afterCreation) {
-        if (!eligible(lane)) return;
+        if (!eligible(lane) || discovering || !sceneVisible()) return;
         slot(lane, scene).createEmptyClip(4);
         retarget(afterCreation, true);
     }

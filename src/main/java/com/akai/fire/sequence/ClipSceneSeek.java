@@ -10,19 +10,19 @@ final class ClipSceneSeek {
 
     void reset() { outstandingFrom = null; direction = 0; }
 
-    void advance(PinnableCursorClip clip, int track, int scene, Consumer<String> diagnostic) {
+    boolean advance(PinnableCursorClip clip, int track, int scene, Consumer<String> diagnostic) {
         boolean exists = clip.exists().get();
         int currentTrack = clip.getTrack().position().get();
         int currentScene = clip.clipLauncherSlot().sceneIndex().get();
-        if (exists && (currentTrack != track || currentScene == scene)) return;
+        if (exists && (currentTrack != track || currentScene == scene)) return false;
         String observed = currentTrack + ":" + currentScene + ":" + exists;
         // Bitwig acknowledges navigation asynchronously. Sending another move from the
         // same observed state would overshoot when both commands eventually execute.
-        if (observed.equals(outstandingFrom)) return;
+        if (observed.equals(outstandingFrom)) return false;
         int nextDirection = exists && currentScene >= 0 ? Integer.compare(scene, currentScene) : 0;
         // If the requested clip vanished, navigation can skip past it. Do not bounce
         // between neighboring clips; the target coordinator will time out safely.
-        if (direction != 0 && nextDirection != 0 && nextDirection != direction) return;
+        if (direction != 0 && nextDirection != 0 && nextDirection != direction) return false;
         direction = nextDirection;
         outstandingFrom = observed;
         clip.isPinned().set(true);
@@ -39,5 +39,6 @@ final class ClipSceneSeek {
         }
         diagnostic.accept("MULTICLIP_SEEK track=" + track + " from=" + currentScene
                 + " to=" + scene + " action=" + action);
+        return true;
     }
 }
